@@ -118,3 +118,13 @@ Ensuite :
 - inscrire `regime_min_support_axis2/3` d'après les seuls diagnostics de support, avant de consulter seuils et classes ;
 - relancer depuis un état propre avec les nombres complets de permutations et de bootstraps ;
 - reporter dans les Methods de la cellule 0 les valeurs entre crochets, lues dans le manifeste du run final.
+
+## Additions after the first real run (v3.1)
+
+| Point | Change | Verification | Status |
+|---|---|---|---|
+| Synchronised null | `axis2_null`: one (year, shift) draw per distinct heatwave (ERA5 cell, start, end), copied to all PSU in the cell, which share identical Tmax series and therefore identical heatwaves. Without this, the copies were treated as independent and the envelope was too narrow. The null median is unchanged in expectation. | `test_null_draws_synchronised_within_era5_cell`; e2e: clusters recorded in the manifest | Verified (synthetic) |
+| p-values not displayed | Still computed and stored in `axis2_null_region.parquet`. Removed from the log, the console output, figure `figS_axis2_null_test` (panel a now shows the observed / null median ratio) and the CSV attached to the figure. | e2e | Verified (synthetic) |
+| 3.1 SPEI/SPI normality assertion | Replaced by a warning. The pooled calibration-period moments are recorded as a diagnostic (`spei_spi.calibration_moments_diagnostic`). Stops on xclim errors and unexplained NaN are unchanged. | xclim 0.61.1: a correct SPI with 50% zeros has mean +0.42, std 0.60 and failed the assertion; with 20% zeros it passes | Applied |
+| 3.2 Complete manifest | `run_status` = started → completed (last cell), final configuration, fingerprint recomputed after the last step (119/119 functions). Under Jupyter, the executed cells are also hashed (`executed_cells_sha256`). | e2e (script mode); the Jupyter cell hash is not testable here | Applied |
+| 3.3 Axis III denominator (S04b, S06b) | Unchanged: fixed cohort of PSU with SPEI. This is a choice to state explicitly. Outside the spin-up the SPEI grid is almost complete: 0.42% NaN in the previous run versus 0.417% for the spin-up alone. The only real effect is 1985, where onsets in January–March cannot be classified at lag 1, so the 1985 per-PSU counts are underestimated. Percentages (`pct_drought_*`, trends) are not affected. | Reasoning on the previous run's outputs | Not modified |

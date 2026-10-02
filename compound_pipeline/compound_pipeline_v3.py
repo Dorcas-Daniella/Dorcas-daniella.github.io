@@ -29,9 +29,9 @@
 # * **Heatwave (HW)**: ≥ 3 consecutive days with Tmax > P90. *Calendar mode*: HWMId-type circular window of 31 calendar positions (±15) on a fixed leap-year calendar (29 Feb = position 60, 1 Mar = 61 in every year). Position 60 only holds data in leap years, so a window that contains 29 Feb spans 30 real dates in a non-leap year. *Annual mode*: one P90 per PSU over all reference days (independent of the position convention). Reference period 1985–2014.
 # * **Extreme precipitation event (EPE)**: daily precipitation **strictly greater** than the PSU's P95 of wet days (≥ 1 mm) over the reference period 1985–2014.
 # * **In-base correction**: inactive. Thresholds from 1985–2014 are applied to every year, so exceedance rates inside the base period are biased low relative to 2015–2024 (known in-base/out-of-base inhomogeneity, Zhang et al. 2005). This is stated as a limitation and not corrected.
-# * **SPEI / SPI**: SPEI-3 (log-logistic/fisk; PWM requested but not implemented for fisk in xclim → effective method **ML** [manifest → `spei_spi.spei.method_effective`]) and SPI-3 (gamma, method APP with location fixed at 0; zeros get a separate probability [manifest → `spei_spi.spi.method_effective`]), xclim [manifest → `spei_spi.xclim_version`, expected 0.61.x], calibrated per calendar month on 1985–2014. PET: Hargreaves–Samani. Drought: index < −1. Every NaN is classified (ineligible PSU, Jan–Feb 1985 spin-up, missing input in the 3-month window, ≤ 1 fittable calibration value); an unexplained NaN stops the run.
+# * **SPEI / SPI**: SPEI-3 (log-logistic/fisk; PWM requested but not implemented for fisk in xclim → effective method **ML** [manifest → `spei_spi.spei.method_effective`]) and SPI-3 (gamma, method APP with location fixed at 0; zeros get a separate probability [manifest → `spei_spi.spi.method_effective`]), xclim [manifest → `spei_spi.xclim_version`, expected 0.61.x], calibrated per calendar month on 1985–2014. PET: Hargreaves–Samani. Drought: index < −1. Every NaN is classified (ineligible PSU, Jan–Feb 1985 spin-up, missing input in the 3-month window, ≤ 1 fittable calibration value); an unexplained NaN stops the run. Pooled calibration-period mean/std are recorded as a diagnostic only (not a goodness-of-fit test; a correct SPI with many zero 3-month totals is not N(0,1)).
 # * **Axis I**: same-day HW-day ∩ EPE-day co-occurrence. LMF (naive and seasonal, day-of-year conditioned) from counts that share one day mask (Tmax and precipitation both available); 95% CIs by bootstrap over PSU and by **cluster bootstrap over ERA5 cells** ("cluster bootstrap CI — ERA5 cell").
-# * **Axis II**: W = 30 days. Heatwaves whose ±W window extends beyond 1 Jan 1985 or 31 Dec 2024 (truncated windows at the edges of the period) are excluded **before** the unique attribution (each EPE goes to its nearest heatwave of the same PSU; ties → earlier heatwave). Primary metric: after/before count ratio; ECA precursor/trigger fractions are secondary. Null (`psu_window`): each eligible, non-truncated heatwave keeps its PSU and duration; its onset month/day is moved to another year (29 Feb → 28 Feb) and shifted by up to ±15 days, subject to staying in the period, landing in a year other than the observed one and not overlapping the observed heatwave. The target year is drawn uniformly among admissible years, then the shift uniformly among the admissible shifts [usable permutations: manifest → `modes.<mode>.axis2_null`].
+# * **Axis II**: W = 30 days. Heatwaves whose ±W window extends beyond 1 Jan 1985 or 31 Dec 2024 (truncated windows at the edges of the period) are excluded **before** the unique attribution (each EPE goes to its nearest heatwave of the same PSU; ties → earlier heatwave). Primary metric: after/before count ratio; ECA precursor/trigger fractions are secondary. Null (`psu_window`): each eligible, non-truncated heatwave keeps its PSU and duration; its onset month/day is moved to another year (29 Feb → 28 Feb) and shifted by up to ±15 days, subject to staying in the period, landing in a year other than the observed one and not overlapping the observed heatwave. The target year is drawn uniformly among admissible years, then the shift uniformly among the admissible shifts. PSU sharing an ERA5 cell have identical heatwaves: one draw is made per distinct heatwave (ERA5 cell, start, end) and copied to all its PSU, so duplicated heatwaves are not treated as independent [clusters and usable permutations: manifest → `modes.<mode>.axis2_null`]. The analysis is descriptive: the observed ratio is compared with the null median and 95% envelope; one-sided permutation p-values are computed and stored (`axis2_null_region.parquet`) but not reported.
 # * **Axis III**: drought state at the **antecedent month** (onset month − 1, primary) and at lag 0 (sensitivity), SPEI-3 and SPI-3. The first SPEI-3/SPI-3 value is March 1985, so heatwaves with onset in January–March 1985 have no antecedent value at lag 1, and those with onset in January–February 1985 have none at lag 0.
 # * **Trends**: Theil–Sen slope per decade on the available years; Mann–Kendall with a **conservative Hamed–Rao (1998) variant** (Sen-detrended ranks, only lags significant at 5% enter the correction, which is applied only when it inflates the variance); 95% **moving-block bootstrap** CI (5-year blocks); BH-FDR across countries per (axis, metric), on computable p-values only. A series with an internal gap keeps its slope, but MK and the CI are not computed (`inference_ok = False`). The CI of the SPEI-threshold sensitivity table comes from `scipy.stats.theilslopes` (not the block bootstrap).
 # * **Aggregation / weighting**: Axis II primary ratio = **ratio of sums** (Σ after / Σ before EPE counts of the group); `_b` statistics = unweighted **means of per-PSU** metrics; `_a` statistics = event-pooled values; Axis I days per PSU per year = mean over all eligible PSU (zeros included); Axis III percentages = over heatwaves with an available index. No demographic weighting (one PSU = one sampled locality).
@@ -248,6 +248,15 @@ def _code_fingerprint() -> dict:
             h.update(name.encode()); h.update(src.encode()); n_ok += 1
     out = {"functions_sha256": h.hexdigest(), "n_functions_hashed": n_ok,
            "functions_not_hashable": skipped}
+    # Jupyter: hash of every code cell executed in this kernel, in order
+    # (covers module-level constants too; reruns are part of the record)
+    try:
+        cells = [c for c in get_ipython().user_ns.get("In", []) if c]   # noqa: F821
+        out["executed_cells_sha256"] = hashlib.sha256(
+            "\n# <cell>\n".join(cells).encode()).hexdigest()
+        out["n_executed_cells"] = len(cells)
+    except NameError:                       # not running under IPython
+        pass
     f = getattr(__main__, "__file__", None)
     if f and Path(f).is_file():
         out["script_file"] = str(f)
@@ -281,6 +290,7 @@ if not _xclim_ok:
                   "with skipna=False). Re-check it before trusting section 8.")
 _manifest_write({
     "created_utc": datetime.now(timezone.utc).isoformat(),
+    "run_status": {"state": "started"},    # set to "completed" by the last cell
     "rng_seed": cfg.rng_seed,
     "config": cfg,
     "packages": _package_versions(),
@@ -2256,7 +2266,15 @@ def run_step05_spei(cfg, out_dir: Path | None = None) -> None:
             psu_with_any_nan_beyond_spinup=int(
                 (s["n_nan"] - s["n_spinup"] > 0).sum()))
         log.info("%s NaN categories (full grid): %s", col, nan_summary[col])
+    # pooled calibration-period moments: a DIAGNOSTIC only. They are neither
+    # necessary nor sufficient for good PSU x month fits; for SPI a large
+    # share of zero 3-month totals legitimately shifts them (zeros receive
+    # the upper zero-mass probability: 50% zeros -> mean ~+0.4, std ~0.6).
+    _ref = df[(df["year"] >= cfg.ref_start_year) & (df["year"] <= cfg.ref_end_year)]
+    ref_moments = {col: dict(mean=float(_ref[col].mean()), std=float(_ref[col].std()))
+                   for col in (sname, pname)}
     manifest_update("spei_spi", dict(
+        calibration_moments_diagnostic=ref_moments,
         spei=dict(index=sname, dist=cfg.spei_dist, method_requested=cfg.spei_method,
                   method_effective=methods.get(sname)),
         spi=dict(index=pname, dist="gamma (floc=0, zeros handled separately)",
@@ -2273,8 +2291,9 @@ def run_step05_spei(cfg, out_dir: Path | None = None) -> None:
                      "NaN rows whole period: %s",
                      col, v.mean(), v.std(), f"{df[col].isna().sum():,}")
             if abs(v.mean()) > 0.1 or abs(v.std() - 1) > 0.1:
-                log.warning("%s drifts from N(0,1) on the calibration period "
-                            "— inspect distribution fits.", col)
+                log.warning("%s pooled moments differ from N(0,1) on the calibration "
+                            "period — diagnostic only (expected for SPI with many "
+                            "zero totals); inspect the fits.", col)
 
     df.to_parquet(out_dir / "spei3.parquet", index=False)
     log.info("Wrote spei3.parquet (%s rows) in %.1f min",
@@ -2295,7 +2314,12 @@ for col in (f"spei{cfg.spei_scale_months}", f"spi{cfg.spei_scale_months}"):
     v = ref[col].dropna()
     print(f"{col}: ref mean {v.mean():+.3f} (exp ~0) | std {v.std():.3f} "
           f"(exp ~1) | NaN whole period {spei[col].isna().mean():.2%}")
-    assert abs(v.mean()) < 0.15 and abs(v.std() - 1) < 0.2, f"{col} fit suspect"
+    # diagnostic, not a stop criterion: a correct SPI with a large zero mass
+    # does not have mean 0 / std 1 (see run_step05_spei); errors and
+    # unexplained NaN already stop the run in step05.
+    if abs(v.mean()) >= 0.15 or abs(v.std() - 1) >= 0.2:
+        warnings.warn(f"{col}: pooled mean/std outside 0 +/- 0.15 / 1 +/- 0.2 — "
+                      "diagnostic only; inspect the fits (zero mass for SPI).")
 dr = spei.groupby("year")[f"is_drought_spei{cfg.spei_scale_months}"].mean()
 print("drought-month fraction by year (head/tail):")
 print(pd.concat([dr.head(3), dr.tail(3)]).round(3))
@@ -2730,6 +2754,10 @@ for _mode, _D in MODE_DIRS.items():
 #     is allowed otherwise), no overlap of the window with the observed heatwave.
 #     Draw: target year uniform among the years with >= 1 admissible delta, then
 #     delta uniform among them; one pseudo-HW per HW and permutation (asserted).
+#     Draws are SYNCHRONISED within each distinct heatwave (ERA5 cell, start,
+#     end): PSU sharing an ERA5 cell have identical heatwaves and receive the
+#     same surrogate. Descriptive use: observed vs null median / envelope; the
+#     permutation p-values are stored, not displayed.
 #     A heatwave without any admissible year stops the run with a diagnostic.
 #     Local seasonality is preserved, only the fine timing is randomised.
 #     Surrogates are pushed through the SAME
@@ -2964,14 +2992,31 @@ def axis2_null(cfg, in_dir: Path, out_dir: Path) -> None:
         assert 0 <= K < 364, "null_window_days must be < 364 (interval sampler)"
         o_month = hw["start_date"].dt.month.to_numpy()
         o_day = hw["start_date"].dt.day.to_numpy()
-        n_adm_years = np.zeros(n, np.int64)
+        # SYNCHRONISED draws: PSU sharing an ERA5 cell have the same Tmax
+        # series, hence identical heatwaves. One (year, shift) is drawn per
+        # DISTINCT heatwave (ERA5 cell, start, end) and copied to all its PSU,
+        # so the null keeps the duplication present in the observed data
+        # instead of treating the copies as independent (too narrow envelope).
+        # Admissibility only depends on the dates, identical within a cluster.
+        cell_of = (pd.read_parquet(cfg.paths.processed / "psu_gridmatch.parquet",
+                                   columns=["psu_idx", "era5_cell"])
+                     .set_index("psu_idx")["era5_cell"])
+        hw_cell = hw["psu_idx"].map(cell_of).to_numpy()
+        assert not pd.isna(hw_cell).any(), "ERA5 cell missing for some heatwaves"
+        clus, _ = pd.factorize(pd.MultiIndex.from_arrays([hw_cell, s_obs, e_obs]))
+        _, rep = np.unique(clus, return_index=True)   # first HW of each cluster
+        nu = rep.size
+        log.info("psu_window null: %s heatwaves = %s distinct (ERA5 cell, start, "
+                 "end) clusters; one synchronised draw per cluster",
+                 f"{n:,}", f"{nu:,}")
+        n_adm_years = np.zeros(nu, np.int64)
         for y in years:                       # one vector pass per year, O(n)
-            a = _transfer_onset(o_month, o_day, np.full(n, y))
-            L, U = _admissible_shifts(a, durm1, s_obs, e_obs, hw_year, W, K,
-                                      study_lo, study_hi)
-            n_adm_years += (y != hw_year) & (U >= L)
+            a = _transfer_onset(o_month[rep], o_day[rep], np.full(nu, y))
+            L, U = _admissible_shifts(a, durm1[rep], s_obs[rep], e_obs[rep],
+                                      hw_year[rep], W, K, study_lo, study_hi)
+            n_adm_years += (y != hw_year[rep]) & (U >= L)
         if (n_adm_years == 0).any():
-            bad = hw.loc[n_adm_years == 0, ["psu_idx", "start_date", "end_date"]]
+            bad = hw.iloc[rep[n_adm_years == 0]][["psu_idx", "start_date", "end_date"]]
             bad.to_parquet(out_dir / "axis2_null_no_admissible_year.parquet", index=False)
             raise RuntimeError(f"psu_window null: {len(bad):,} heatwave(s) have no "
                                "admissible target year — see "
@@ -3004,25 +3049,28 @@ def axis2_null(cfg, in_dir: Path, out_dir: Path) -> None:
     t0 = time.time()
     for k in range(n_perm):
         if cfg.null_mode == "psu_window":
-            # (1) target year: uniform among the other years, rejected while it
-            #     has no admissible shift -> uniform among admissible years
-            yi = np.empty(n, np.int64); a_y = np.empty(n, np.int64)
-            L = np.empty(n, np.int64); U = np.empty(n, np.int64)
-            pending = np.arange(n)
+            # (1) target year (one per cluster): uniform among the other years,
+            #     rejected while it has no admissible shift -> uniform among
+            #     admissible years
+            yi = np.empty(nu, np.int64); a_y = np.empty(nu, np.int64)
+            L = np.empty(nu, np.int64); U = np.empty(nu, np.int64)
+            pending = np.arange(nu)
             while pending.size:
+                r_ = rep[pending]
                 y_try = rng.integers(0, ny - 1, size=pending.size)
-                y_try = y_try + (y_try >= obs_yi[pending])     # skip the observed year
-                a_try = _transfer_onset(o_month[pending], o_day[pending], years[y_try])
-                l_, u_ = _admissible_shifts(a_try, durm1[pending], s_obs[pending],
-                                            e_obs[pending], hw_year[pending], W, K,
-                                            study_lo, study_hi)
+                y_try = y_try + (y_try >= obs_yi[r_])          # skip the observed year
+                a_try = _transfer_onset(o_month[r_], o_day[r_], years[y_try])
+                l_, u_ = _admissible_shifts(a_try, durm1[r_], s_obs[r_], e_obs[r_],
+                                            hw_year[r_], W, K, study_lo, study_hi)
                 ok = u_ >= l_
                 acc = pending[ok]
                 yi[acc], a_y[acc], L[acc], U[acc] = y_try[ok], a_try[ok], l_[ok], u_[ok]
                 pending = pending[~ok]
-            # (2) shift: uniform among the admissible shifts of that year
+            # (2) shift: uniform among the admissible shifts of that year;
+            #     then copied to every heatwave of the cluster
             delta = rng.integers(L, U + 1)
-            s_start = a_y + delta
+            yi, delta = yi[clus], delta[clus]
+            s_start = a_y[clus] + delta
             s_end_chk = s_start + durm1
             # one pseudo-HW per HW (same PSU array, same duration), admissible dates
             assert s_start.shape == (n,) and (s_end_chk - s_start == durm1).all()
@@ -3088,17 +3136,22 @@ def axis2_null(cfg, in_dir: Path, out_dir: Path) -> None:
     pv = [c for c in out.columns if c.startswith("n_perm_valid_")]
     manifest_update("axis2_null", dict(
         null_mode=cfg.null_mode, n_permutations=n_perm, n_hw=n,
+        n_distinct_hw_clusters=int(nu) if cfg.null_mode == "psu_window" else None,
+        draws_synchronised_by="era5_cell, start, end" if cfg.null_mode == "psu_window" else None,
+        p_values="computed and stored in axis2_null_region.parquet; not displayed",
         n_perm_valid=out[["scale", "season"] + pv].to_dict(orient="records")),
         mode=cfg.hw_threshold_mode)
     out[(out["scale"] == "Continental") & (out["season"] == "ALL")].to_parquet(
         out_dir / "axis2_null_continental.parquet", index=False)
     pd.concat(draws, ignore_index=True).to_parquet(out_dir / "axis2_null_draws.parquet", index=False)
     c = out[(out["scale"] == "Continental") & (out["season"] == "ALL")].iloc[0]
-    log.info("Axis II continental: count_ratio %.3f vs null [%.3f, %.3f] (p=%.4f) | "
-             "trigger %.3f vs [%.3f, %.3f] (p=%.4f) | precursor %.3f vs [%.3f, %.3f]",
-             c["count_ratio_obs"], c["count_ratio_null_lo"], c["count_ratio_null_hi"],
-             c["p_count_ratio_excess"], c["trigger_obs"], c["trigger_null_lo"],
-             c["trigger_null_hi"], c["p_trigger_excess"], c["precursor_obs"],
+    # descriptive analysis: p-values are stored (axis2_null_region.parquet) but
+    # not displayed; the comparison is reported as observed vs null envelope
+    log.info("Axis II continental: count_ratio %.3f vs null median %.3f [%.3f, %.3f] | "
+             "trigger %.3f vs [%.3f, %.3f] | precursor %.3f vs [%.3f, %.3f]",
+             c["count_ratio_obs"], c["count_ratio_null_med"], c["count_ratio_null_lo"],
+             c["count_ratio_null_hi"], c["trigger_obs"], c["trigger_null_lo"],
+             c["trigger_null_hi"], c["precursor_obs"],
              c["precursor_null_lo"], c["precursor_null_hi"])
 
 
@@ -3224,9 +3277,9 @@ for _mode, _D in MODE_DIRS.items():
     axis2_window_sensitivity(cfg, _D, SIG)
     check_axis2_consistency(cfg, _D, SIG)          # raises on any mismatch
     null = pd.read_parquet(SIG / "axis2_null_region.parquet")
-    print(null[null.season == "ALL"][["scale", "n_hw", "count_ratio_obs", "count_ratio_null_lo",
-          "count_ratio_null_hi", "p_count_ratio_excess", "trigger_obs", "trigger_null_hi",
-          "p_diff_excess"]].round(4).to_string(index=False))
+    print(null[null.season == "ALL"][["scale", "n_hw", "count_ratio_obs", "count_ratio_null_med",
+          "count_ratio_null_lo", "count_ratio_null_hi", "trigger_obs",
+          "trigger_null_hi"]].round(4).to_string(index=False))   # p-values stored, not shown
     print(pd.read_parquet(SIG / "axis2_window_sensitivity.parquet")
           .query("scale == 'Continental'")[["window_days", "n_hw", "count_ratio", "rate_diff"]]
           .round(4).to_string(index=False))
@@ -5002,8 +5055,9 @@ def fig_null(D, FIG):
     ax.errorbar(x, t["count_ratio_null_med"], yerr=[t["count_ratio_null_med"] - t["count_ratio_null_lo"],
                 t["count_ratio_null_hi"] - t["count_ratio_null_med"]], fmt="s", color="k", ms=4, capsize=4, lw=1,
                 label="null median & 95% envelope")
-    for i, p in enumerate(t["p_count_ratio_excess"]):
-        ax.text(x[i], max(t["count_ratio_obs"].iloc[i], t["count_ratio_null_hi"].iloc[i]) * 1.04, f"p={p:.3f}", ha="center", fontsize=6)
+    for i, (o_, m_) in enumerate(zip(t["count_ratio_obs"], t["count_ratio_null_med"])):   # effect size, no p-value
+        ax.text(x[i], max(o_, t["count_ratio_null_hi"].iloc[i]) * 1.04,
+                f"×{o_ / m_:.2f} null median" if np.isfinite(o_ / m_) else "", ha="center", fontsize=6)
     ax.axhline(1, color="#888", lw=.5, ls="--"); ax.set_xticks(x); ax.set_xticklabels(SCALES)
     ax.set_ylabel("EPE after / before HW (unique attribution)")
     ax.set_title("PRIMARY metric vs. strict null (%s)" % mode_txt, fontsize=9, fontweight="bold")
@@ -5016,8 +5070,6 @@ def fig_null(D, FIG):
                 fmt="none", ecolor="k", capsize=3, lw=1)
     ax.errorbar(x + .18, (t["trigger_null_lo"] + t["trigger_null_hi"]) / 2, yerr=(t["trigger_null_hi"] - t["trigger_null_lo"]) / 2,
                 fmt="none", ecolor="k", capsize=3, lw=1, label="null 95% envelope")
-    for i, p in enumerate(t["p_diff_excess"]):
-        ax.text(x[i], max(t["trigger_obs"].iloc[i], t["trigger_null_hi"].iloc[i]) * 1.04, f"p(diff)={p:.3f}", ha="center", fontsize=6)
     ax.set_xticks(x); ax.set_xticklabels(SCALES); ax.set_ylabel(f"Share of HW with ≥1 EPE within {cfg.axis2_window_days} d")
     ax.set_title("Secondary metric: ECA fractions vs. null", fontsize=9, fontweight="bold")
     ax.legend(fontsize=6, loc="upper center", bbox_to_anchor=(.5, -.12), ncol=3); panel_label(ax, "b")
@@ -5039,7 +5091,8 @@ def fig_null(D, FIG):
     ax.set_xlabel("EPE after / before HW"); ax.set_ylabel("Count"); ax.set_title("Null distribution, Continental", fontsize=9, fontweight="bold")
     ax.legend(fontsize=6); panel_label(ax, "d")
     savefig(fig, FIG, "figS_axis2_null_test")
-    nl.round(4).to_csv(FIG / "figS_axis2_null_test_table.csv", index=False)
+    nl.drop(columns=[c for c in nl.columns if c.startswith("p_")]).round(4).to_csv(
+        FIG / "figS_axis2_null_test_table.csv", index=False)   # p-values kept in the parquet only
 
 
 def fig_sensitivity(D, FIG):
@@ -5170,4 +5223,13 @@ _ROOT_FIG = PROCESSED / "figures_shared"
 fig_drought_baseline(_ROOT_FIG)
 if len(MODE_DIRS) > 1:
     fig_mode_comparison(_ROOT_FIG)
+
+# ---- run completed: final manifest update ------------------------------------
+# Recomputes the code fingerprint now that EVERY function (sections 13-16
+# included) is defined, and stores the final configuration. A manifest still
+# showing run_status = "started" belongs to an interrupted run.
+manifest_update("run_status", dict(state="completed",
+                                   completed_utc=datetime.now(timezone.utc).isoformat(),
+                                   final_config=cfg))
+print("Run completed; manifest:", MANIFEST)
 

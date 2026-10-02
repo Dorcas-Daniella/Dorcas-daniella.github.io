@@ -278,7 +278,7 @@ def test_year_crossing_allowed_unless_it_lands_in_observed_year():
     assert (L[0], U[0]) == (-15, 3)            # Jan 1 2000 onwards excluded
 
 
-def _write_null_inputs(cfg, hws):
+def _write_null_inputs(cfg, hws, cells=None):
     pr = cfg.paths.processed
     pr.mkdir(parents=True, exist_ok=True)
     n_psu = int(max(h[0] for h in hws)) + 1
@@ -286,7 +286,7 @@ def _write_null_inputs(cfg, hws):
                   "lat": 0.0, "lon": 37.0}).to_parquet(pr / "psu.parquet")
     pd.DataFrame({"psu_idx": np.arange(n_psu), "chirps_valid": True, "era5_valid": True,
                   "chirps_too_far": False, "chirps_all_nan": False, "era5_too_far": False,
-                  "era5_cell": 0}).to_parquet(pr / "psu_gridmatch.parquet")
+                  "era5_cell": cells if cells is not None else 0}).to_parquet(pr / "psu_gridmatch.parquet")
     pd.DataFrame({"psu_idx": np.arange(n_psu), "p95_reliable": True,
                   "n_wet_days": 500}).to_parquet(pr / "thresholds_precip.parquet")
     hw = pd.DataFrame({"hw_id": np.arange(len(hws)), "psu_idx": [h[0] for h in hws],
@@ -325,6 +325,28 @@ def test_null_draw_order_uniform_years_then_shifts(cfg):
     shift = s - PNS["_transfer_onset"](np.full(len(s), 2), np.full(len(s), 20), yrs)
     assert shift.min() == -15 and shift.max() == 15
     assert stats.chisquare(pd.Series(shift).value_counts().sort_index().to_numpy()).pvalue > 1e-3
+
+
+def test_null_draws_synchronised_within_era5_cell(cfg):
+    # PSU 0 and 1 share ERA5 cell 0 and the same heatwave (identical Tmax series);
+    # PSU 2 has the same dates but another cell -> independent draw
+    _write_null_inputs(cfg, [(0, "2000-06-10", "2000-06-14"), (1, "2000-06-10", "2000-06-14"),
+                             (2, "2000-06-10", "2000-06-14")], cells=[0, 0, 1])
+    cfg.n_null_permutations = 300
+    starts = []
+    real = PNS["eca_indicators"]
+
+    def spy(hw_psu, s, e, keys, W, span=1_000_000):
+        starts.append(np.asarray(s).copy())
+        return real(hw_psu, s, e, keys, W, span)
+    PNS["eca_indicators"] = spy
+    try:
+        P.axis2_null(cfg, cfg.paths.processed, cfg.paths.processed)
+    finally:
+        PNS["eca_indicators"] = real
+    S = np.vstack(starts)                            # (n_perm, 3), hw_id order
+    assert (S[:, 0] == S[:, 1]).all()                # same cluster -> same surrogate
+    assert (S[:, 0] != S[:, 2]).mean() > 0.9         # other cell -> independent
 
 
 def test_null_stops_when_no_admissible_year(cfg):

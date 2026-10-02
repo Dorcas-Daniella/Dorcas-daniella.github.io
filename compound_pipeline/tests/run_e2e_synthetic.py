@@ -108,6 +108,24 @@ for m, D in MODE_DIRS.items():
     sig = pd.read_parquet(D / "significance" / "lmf_by_scale.parquet")
     check(f"[{m}] LMF CI labels", "cluster bootstrap CI — ERA5 cell" in set(sig.ci_method))
 
+# manifest completed with the full code fingerprint; null synchronised; p-values stored not shown
+man = json.loads((PROCESSED / "run_manifest.json").read_text())
+check("manifest: run_status completed + final config",
+      man["run_status"]["state"] == "completed" and "final_config" in man["run_status"])
+n_funcs_in_file = len(re.findall(r"^def ", src, flags=re.M))
+check(f"manifest: all {n_funcs_in_file} top-level functions hashed at the end",
+      man["code"]["n_functions_hashed"] >= n_funcs_in_file and not man["code"]["functions_not_hashable"])
+for m, D in MODE_DIRS.items():
+    an = man["modes"][m]["axis2_null"]
+    check(f"[{m}] null: clusters recorded ({an['n_distinct_hw_clusters']:,} <= {an['n_hw']:,} HW)",
+          0 < an["n_distinct_hw_clusters"] <= an["n_hw"])
+    nl = pd.read_parquet(D / "significance" / "axis2_null_region.parquet")
+    csv = pd.read_csv(g["FIG_DIRS"][m] / "figS_axis2_null_test_table.csv")
+    check(f"[{m}] p-values stored in parquet, absent from the figure table",
+          "p_count_ratio_excess" in nl and not any(c.startswith("p_") for c in csv))
+check("SPEI/SPI calibration moments recorded as diagnostic",
+      "calibration_moments_diagnostic" in man["spei_spi"])
+
 # annual thresholds constant per PSU (one P90 applied all year)
 thr = pd.read_parquet(MODE_DIRS["annual"] / "thresholds_tmax_base.parquet")
 check("annual mode: one threshold per PSU", (thr.groupby("psu_idx").thr.nunique() == 1).all())
