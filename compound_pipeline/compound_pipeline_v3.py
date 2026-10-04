@@ -31,7 +31,7 @@
 # * **In-base correction**: inactive. Thresholds from 1985–2014 are applied to every year, so exceedance rates inside the base period are biased low relative to 2015–2024 (known in-base/out-of-base inhomogeneity, Zhang et al. 2005). This is stated as a limitation and not corrected.
 # * **SPEI / SPI**: SPEI-3 (log-logistic/fisk; PWM requested but not implemented for fisk in xclim → effective method **ML** [manifest → `spei_spi.spei.method_effective`]) and SPI-3 (gamma, method APP with location fixed at 0; zeros get a separate probability [manifest → `spei_spi.spi.method_effective`]), xclim [manifest → `spei_spi.xclim_version`, expected 0.61.x], calibrated per calendar month on 1985–2014. PET: Hargreaves–Samani. Drought: index < −1. Every NaN is classified (ineligible PSU, Jan–Feb 1985 spin-up, missing input in the 3-month window, ≤ 1 fittable calibration value); an unexplained NaN stops the run. Pooled calibration-period mean/std are recorded as a diagnostic only (not a goodness-of-fit test; a correct SPI with many zero 3-month totals is not N(0,1)).
 # * **Axis I**: same-day HW-day ∩ EPE-day co-occurrence. LMF (naive and seasonal, day-of-year conditioned) from counts that share one day mask (Tmax and precipitation both available); 95% CIs by bootstrap over PSU and by **cluster bootstrap over ERA5 cells** ("cluster bootstrap CI — ERA5 cell").
-# * **Axis II**: W = 30 days. Heatwaves whose ±W window extends beyond 1 Jan 1985 or 31 Dec 2024 (truncated windows at the edges of the period) are excluded **before** the unique attribution (each EPE goes to its nearest heatwave of the same PSU; ties → earlier heatwave). Primary metric: after/before count ratio; ECA precursor/trigger fractions are secondary. Null (`psu_window`): each eligible, non-truncated heatwave keeps its PSU and duration; its onset month/day is moved to another year (29 Feb → 28 Feb) and shifted by up to ±15 days, subject to staying in the period, landing in a year other than the observed one and not overlapping the observed heatwave. The target year is drawn uniformly among admissible years, then the shift uniformly among the admissible shifts. PSU sharing an ERA5 cell have identical heatwaves: one draw is made per distinct heatwave (ERA5 cell, start, end) and copied to all its PSU, so duplicated heatwaves are not treated as independent [clusters and usable permutations: manifest → `modes.<mode>.axis2_null`]. The analysis is descriptive: the observed ratio is compared with the null median and 95% envelope; one-sided permutation p-values are computed and stored (`axis2_null_region.parquet`) but not reported.
+# * **Axis II**: W = 30 days. Heatwaves whose ±W window extends beyond 1 Jan 1985 or 31 Dec 2024 (truncated windows at the edges of the period) are excluded **before** the unique attribution (each EPE goes to its nearest heatwave of the same PSU; ties → earlier heatwave). Primary metric: after/before count ratio; ECA precursor/trigger fractions are secondary. Null (`psu_window`): each eligible, non-truncated heatwave keeps its PSU and duration; its onset month/day is moved to another year (29 Feb → 28 Feb) and shifted by up to ±15 days, subject to staying in the period, landing in a year other than the observed one and not overlapping the observed heatwave. The target year is drawn uniformly among admissible years, then the shift uniformly among the admissible shifts. PSU sharing an ERA5 cell have identical heatwaves: one draw is made per distinct heatwave (ERA5 cell, start, end) and copied to all its PSU, so duplicated heatwaves are not treated as independent [clusters and usable permutations: manifest → `modes.<mode>.axis2_null`]. The analysis is descriptive: the observed ratio is compared with the null median and 95% envelope; one-sided permutation p-values are computed and stored (`axis2_null_region.parquet`) but not reported. The null also keeps the before and after EPE counts of every permutation, so the asymmetry can be decomposed into a deficit of EPE before heatwaves (`before_obs_over_null_med` < 1) and/or an excess after them (`after_obs_over_null_med` > 1). Permutations: 1000 in calendar mode (primary), 500 in annual mode (comparison) [manifest → `modes.<mode>.axis2_null.n_permutations`].
 # * **Axis III**: drought state at the **antecedent month** (onset month − 1, primary) and at lag 0 (sensitivity), SPEI-3 and SPI-3. The first SPEI-3/SPI-3 value is March 1985, so heatwaves with onset in January–March 1985 have no antecedent value at lag 1, and those with onset in January–February 1985 have none at lag 0.
 # * **Trends**: Theil–Sen slope per decade on the available years; Mann–Kendall with a **conservative Hamed–Rao (1998) variant** (Sen-detrended ranks, only lags significant at 5% enter the correction, which is applied only when it inflates the variance); 95% **moving-block bootstrap** CI (5-year blocks); BH-FDR across countries per (axis, metric), on computable p-values only. A series with an internal gap keeps its slope, but MK and the CI are not computed (`inference_ok = False`). The CI of the SPEI-threshold sensitivity table comes from `scipy.stats.theilslopes` (not the block bootstrap).
 # * **Aggregation / weighting**: Axis II primary ratio = **ratio of sums** (Σ after / Σ before EPE counts of the group); `_b` statistics = unweighted **means of per-PSU** metrics; `_a` statistics = event-pooled values; Axis I days per PSU per year = mean over all eligible PSU (zeros included); Axis III percentages = over heatwaves with an available index. No demographic weighting (one PSU = one sampled locality).
@@ -128,7 +128,9 @@ cfg = SimpleNamespace(
     axis3_precond_lag_months=1,     # PRIMARY: antecedent month m-1
     axis3_lags=(1, 0),              # all lags computed in ONE pass; [0] must be the primary
     # significance (section 12)
-    n_null_permutations=1000,       # QUICK TEST: set 100-200 first
+    n_null_permutations=1000,       # default; QUICK TEST: set 100-200 first
+    # per-mode override (calendar = primary, annual = comparison mode)
+    n_null_permutations_by_mode={"calendar": 1000, "annual": 500},
     null_mode="psu_window",         # "psu_window" (strict, PRIMARY) | "region_pool" (legacy)
     null_window_days=15,            # +/- calendar days around the observed onset (psu_window)
     null_seasons=("DJF", "MAM", "JJA", "SON"),   # onset-season decomposition of the null
@@ -3038,10 +3040,12 @@ def axis2_null(cfg, in_dir: Path, out_dir: Path) -> None:
                       count_ratio_obs=na / nb if nb > 0 else np.nan)
 
     # ---- surrogates ------------------------------------------------------------
-    n_perm = cfg.n_null_permutations
+    n_perm = getattr(cfg, "n_null_permutations_by_mode", {}).get(
+        cfg.hw_threshold_mode, cfg.n_null_permutations)
     log.info("Axis II null: mode=%s, %d permutations x %s HW, +/-%d d, W=%d ...",
              cfg.null_mode, n_perm, f"{n:,}", K, W)
-    null = {g: {k: np.full(n_perm, np.nan) for k in ("precursor", "trigger", "count_ratio")}
+    null = {g: {k: np.full(n_perm, np.nan) for k in ("precursor", "trigger", "count_ratio",
+                                                      "n_before", "n_after")}
             for g in groups}
     if cfg.null_mode == "region_pool":
         pool_lab = hw["region"].astype(str).to_numpy()
@@ -3099,6 +3103,8 @@ def axis2_null(cfg, in_dir: Path, out_dir: Path) -> None:
             null[g]["precursor"][k] = p[mv].mean()
             null[g]["trigger"][k] = t[mv].mean()
             null[g]["count_ratio"][k] = na / nb if nb > 0 else np.nan
+            null[g]["n_before"][k] = nb      # kept to decompose the ratio:
+            null[g]["n_after"][k] = na       # deficit before vs excess after
         if (k + 1) % max(1, n_perm // 10) == 0:
             log.info("  perm %d/%d | %.1f min", k + 1, n_perm, (time.time() - t0) / 60)
 
@@ -3121,6 +3127,18 @@ def axis2_null(cfg, in_dir: Path, out_dir: Path) -> None:
             count_ratio_null_lo=q(nl["count_ratio"], .025),
             count_ratio_null_med=q(nl["count_ratio"], .5),
             count_ratio_null_hi=q(nl["count_ratio"], .975),
+            # decomposition of the ratio: observed counts vs their null
+            # distribution (obs / null median < 1 = deficit, > 1 = excess).
+            # The ratio of these two ratios approximates, but does not equal,
+            # count_ratio_obs / count_ratio_null_med (median of a ratio).
+            n_before_null_lo=q(nl["n_before"], .025), n_before_null_med=q(nl["n_before"], .5),
+            n_before_null_hi=q(nl["n_before"], .975),
+            n_after_null_lo=q(nl["n_after"], .025), n_after_null_med=q(nl["n_after"], .5),
+            n_after_null_hi=q(nl["n_after"], .975),
+            before_obs_over_null_med=(o["n_before_obs"] / q(nl["n_before"], .5)
+                                      if q(nl["n_before"], .5) > 0 else np.nan),
+            after_obs_over_null_med=(o["n_after_obs"] / q(nl["n_after"], .5)
+                                     if q(nl["n_after"], .5) > 0 else np.nan),
             p_trigger_excess=pval(nl["trigger"], o["trigger_obs"]),
             p_diff_excess=pval(d_null, d_obs),
             p_count_ratio_excess=pval(nl["count_ratio"], o["count_ratio_obs"]),
@@ -3130,7 +3148,8 @@ def axis2_null(cfg, in_dir: Path, out_dir: Path) -> None:
             n_perm_valid_count_ratio=int(np.isfinite(nl["count_ratio"]).sum())))
         draws.append(pd.DataFrame({"scale": sc, "season": se, "perm": np.arange(n_perm),
                                    "precursor": nl["precursor"], "trigger": nl["trigger"],
-                                   "count_ratio": nl["count_ratio"]}))
+                                   "count_ratio": nl["count_ratio"],
+                                   "n_before": nl["n_before"], "n_after": nl["n_after"]}))
     out = pd.DataFrame(rows)
     out.to_parquet(out_dir / "axis2_null_region.parquet", index=False)
     pv = [c for c in out.columns if c.startswith("n_perm_valid_")]
@@ -3270,7 +3289,8 @@ for _mode, _D in MODE_DIRS.items():
 for _mode, _D in MODE_DIRS.items():
     print(f"\n===== hw_threshold_mode = {_mode} =====")
     # ---- 12b. Axis II strict null (SLOW: n_perm x [ECA + unique attribution]) ----
-    # First run: consider cfg.n_null_permutations = 100-200; full 1000 overnight.
+    # Permutations per mode: cfg.n_null_permutations_by_mode (calendar 1000,
+    # annual 500); for a quick test set e.g. {"calendar": 200, "annual": 200}.
     SIG = _D / "significance"
     set_mode(_mode)
     axis2_null(cfg, _D, SIG)
@@ -3280,6 +3300,10 @@ for _mode, _D in MODE_DIRS.items():
     print(null[null.season == "ALL"][["scale", "n_hw", "count_ratio_obs", "count_ratio_null_med",
           "count_ratio_null_lo", "count_ratio_null_hi", "trigger_obs",
           "trigger_null_hi"]].round(4).to_string(index=False))   # p-values stored, not shown
+    # decomposition: observed before/after counts vs their null medians
+    print(null[null.season == "ALL"][["scale", "n_before_obs", "n_before_null_med",
+          "before_obs_over_null_med", "n_after_obs", "n_after_null_med",
+          "after_obs_over_null_med"]].round(4).to_string(index=False))
     print(pd.read_parquet(SIG / "axis2_window_sensitivity.parquet")
           .query("scale == 'Continental'")[["window_days", "n_hw", "count_ratio", "rate_diff"]]
           .round(4).to_string(index=False))

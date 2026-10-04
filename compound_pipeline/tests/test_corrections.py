@@ -29,6 +29,7 @@ O, ONS = load(OLD)          # original v2 (functions only), for before/after che
 @pytest.fixture
 def cfg(tmp_path):
     c = load_cfg(NEW, tmp_path)
+    c.n_null_permutations_by_mode = {}      # tests set n_null_permutations directly
     PNS["cfg"] = c
     # manifest writes are not under test here
     PNS["manifest_update"] = lambda *a, **k: None
@@ -347,6 +348,27 @@ def test_null_draws_synchronised_within_era5_cell(cfg):
     S = np.vstack(starts)                            # (n_perm, 3), hw_id order
     assert (S[:, 0] == S[:, 1]).all()                # same cluster -> same surrogate
     assert (S[:, 0] != S[:, 2]).mean() > 0.9         # other cell -> independent
+
+
+def test_null_keeps_before_after_counts_and_per_mode_permutations(cfg):
+    _write_null_inputs(cfg, [(0, "2000-06-10", "2000-06-14"), (1, "1995-03-01", "1995-03-04")])
+    pd.DataFrame({"psu_idx": [0, 0, 1], "date": pd.to_datetime(
+        ["2000-06-01", "2000-06-20", "1995-03-10"])}).to_parquet(cfg.paths.processed / "epe.parquet")
+    cfg.n_null_permutations_by_mode = {"calendar": 37, "annual": 11}
+    cfg.hw_threshold_mode = "annual"
+    P.axis2_null(cfg, cfg.paths.processed, cfg.paths.processed)
+    dr = pd.read_parquet(cfg.paths.processed / "axis2_null_draws.parquet")
+    nl = pd.read_parquet(cfg.paths.processed / "axis2_null_region.parquet")
+    c = nl[(nl.scale == "Continental") & (nl.season == "ALL")].iloc[0]
+    d = dr[(dr.scale == "Continental") & (dr.season == "ALL")]
+    assert len(d) == 11                                   # per-mode count used
+    assert {"n_before", "n_after"} <= set(dr.columns)
+    assert c["n_before_obs"] == 1 and c["n_after_obs"] == 2
+    assert np.isclose(c["n_before_null_med"], np.nanmedian(d["n_before"]))
+    ok = d["n_before"] > 0
+    assert np.allclose(d.loc[ok, "count_ratio"], d.loc[ok, "n_after"] / d.loc[ok, "n_before"])
+    if c["n_after_null_med"] > 0:
+        assert np.isclose(c["after_obs_over_null_med"], 2 / c["n_after_null_med"])
 
 
 def test_null_stops_when_no_admissible_year(cfg):

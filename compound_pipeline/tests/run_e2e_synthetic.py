@@ -25,6 +25,9 @@ for k, v in {"n_null_permutations": 60, "n_lmf_surrogates": 60, "n_bootstrap": 6
              "psu_block_size": 8, "extraction_batch_size": 9}.items():
     src, n = re.subn(rf"\b{k}=\d+", f"{k}={v}", src, count=1)
     assert n == 1, k
+src, n = re.subn(r'n_null_permutations_by_mode=\{[^}]*\}',
+                 'n_null_permutations_by_mode={"calendar": 60, "annual": 40}', src, count=1)
+assert n == 1, "n_null_permutations_by_mode"
 run_file = work / "pipeline_e2e.py"
 run_file.write_text(src)
 g = runpy.run_path(str(run_file), run_name="__main__")
@@ -121,6 +124,11 @@ for m, D in MODE_DIRS.items():
           0 < an["n_distinct_hw_clusters"] <= an["n_hw"])
     nl = pd.read_parquet(D / "significance" / "axis2_null_region.parquet")
     csv = pd.read_csv(g["FIG_DIRS"][m] / "figS_axis2_null_test_table.csv")
+    check(f"[{m}] null permutations per mode ({an['n_permutations']})",
+          an["n_permutations"] == {"calendar": 60, "annual": 40}[m])
+    check(f"[{m}] null decomposition columns present",
+          {"n_before_null_med", "n_after_null_med", "before_obs_over_null_med",
+           "after_obs_over_null_med"} <= set(nl.columns))
     check(f"[{m}] p-values stored in parquet, absent from the figure table",
           "p_count_ratio_excess" in nl and not any(c.startswith("p_") for c in csv))
 check("SPEI/SPI calibration moments recorded as diagnostic",
