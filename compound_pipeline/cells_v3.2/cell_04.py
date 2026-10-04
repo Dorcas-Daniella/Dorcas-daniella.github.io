@@ -45,7 +45,7 @@ cfg = SimpleNamespace(
     # significance (section 12)
     n_null_permutations=1000,       # default; QUICK TEST: set 100-200 first
     # per-mode override (calendar = primary, annual = comparison mode)
-    n_null_permutations_by_mode={"calendar": 1000, "annual": 500},
+    n_null_permutations_by_mode={"calendar": 1000, "annual": 1000},
     null_mode="psu_window",         # "psu_window" (strict, PRIMARY) | "region_pool" (legacy)
     null_window_days=15,            # +/- calendar days around the observed onset (psu_window)
     null_seasons=("DJF", "MAM", "JJA", "SON"),   # onset-season decomposition of the null

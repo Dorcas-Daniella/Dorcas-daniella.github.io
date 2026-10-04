@@ -1,8 +1,8 @@
 for _mode, _D in MODE_DIRS.items():
     print(f"\n===== hw_threshold_mode = {_mode} =====")
     # ---- 12b. Axis II strict null (SLOW: n_perm x [ECA + unique attribution]) ----
-    # Permutations per mode: cfg.n_null_permutations_by_mode (calendar 1000,
-    # annual 500); for a quick test set e.g. {"calendar": 200, "annual": 200}.
+    # Permutations per mode: cfg.n_null_permutations_by_mode (1000 in
+    # each mode); for a quick test set e.g. {"calendar": 200, "annual": 200}.
     SIG = _D / "significance"
     set_mode(_mode)
     axis2_null(cfg, _D, SIG)
