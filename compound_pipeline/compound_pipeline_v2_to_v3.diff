@@ -49,7 +49,15 @@
  
  # %% [markdown]
  # ## 1. Imports and logging
-@@ -96,17 +99,19 @@
+@@ -66,6 +69,7 @@
+ _h.setFormatter(logging.Formatter("%(asctime)s | %(message)s", "%H:%M:%S"))
+ log.addHandler(_h)
+ log.setLevel(logging.INFO)
++log.propagate = False              # no duplicate lines if the root logger has a handler
+ 
+ print("pandas", pd.__version__, "| pyarrow", pyarrow.__version__,
+       "| xarray", xr.__version__, "| xclim", xclim.__version__)
+@@ -96,17 +100,19 @@
      study_start_year=1985, study_end_year=2024,
      ref_start_year=1985, ref_end_year=2014,
      decade_bounds=((1985, 1994), (1995, 2004), (2005, 2014), (2015, 2024)),
@@ -73,7 +81,7 @@
      # EPE (sections 5,7)
      epe_percentile=95.0, wet_day_min_mm=1.0, min_wet_days_ref=100,
      # SPEI/SPI (section 8)
-@@ -114,7 +119,7 @@
+@@ -114,7 +120,7 @@
      spei_dist="fisk", spei_method="PWM",   # PWM->ML fallback is automatic & logged
      min_month_coverage=0.9,
      # Axis I
@@ -82,7 +90,7 @@
      # Axis II
      axis2_window_days=30, axis2_exclude_truncated=True,
      axis2_attribution_tiebreak="earlier",
-@@ -122,13 +127,13 @@
+@@ -122,13 +128,13 @@
      # Axis III
      axis3_precond_lag_months=1,     # PRIMARY: antecedent month m-1
      axis3_lags=(1, 0),              # all lags computed in ONE pass; [0] must be the primary
@@ -99,7 +107,7 @@
      n_lmf_surrogates=1000,
      rng_seed=42,
      # trends (section 14)
-@@ -136,7 +141,11 @@
+@@ -136,7 +142,11 @@
      # figures (section 17)
      regime_quantile=0.75,           # Fig 6 PRIMARY: prominent = above top quartile
      regime_quantile_sens=2/3,     # Fig 6 sensitivity: top tercile
@@ -112,7 +120,7 @@
      spei_threshold_sens=(-0.5, -1.0, -1.5, -2.0),
      # processing
      psu_block_size=3000,
-@@ -146,6 +155,11 @@
+@@ -146,6 +156,11 @@
  cfg.ref_years = list(range(cfg.ref_start_year, cfg.ref_end_year + 1))
  cfg.study_years = list(range(cfg.study_start_year, cfg.study_end_year + 1))
  
@@ -124,7 +132,7 @@
  # paths namespace consumed by the step functions (identical to modular version)
  cfg.paths = SimpleNamespace(
      raw_psu_rdata=RAW_PSU_RDATA, era5_nc=ERA5_NC, chirps_nc=CHIRPS_NC,
-@@ -164,8 +178,133 @@
+@@ -164,8 +179,133 @@
      cfg.hw_threshold_mode = mode
      return MODE_DIRS[mode]
  
@@ -258,7 +266,7 @@
  
  
  # %% [markdown]
-@@ -193,6 +332,71 @@
+@@ -193,6 +333,71 @@
      return (np.asarray(dates, dtype="datetime64[D]") - EPOCH).astype("int64")
  
  
@@ -330,7 +338,7 @@
  def safe_ratio(numer, denom) -> np.ndarray:
      """Element-wise numer/denom; NaN where denom <= 0 (pairwise deletion)."""
      numer = np.asarray(numer, dtype="float64")
-@@ -292,6 +496,18 @@
+@@ -292,6 +497,18 @@
                                       zhang_n: int = 29):
      """Calendar-day percentiles with in-base correction.
  
@@ -349,7 +357,7 @@
      Parameters
      ----------
      grid : float32 array (n_psu, 366, n_ref_years), NaN where no data.
-@@ -550,12 +766,21 @@
+@@ -550,12 +767,21 @@
                       span: int = 1_000_000):
      """Assign every EPE day to at most ONE heatwave of the same PSU: the
      temporally closest one within `window` days (distance 0 if the EPE falls
@@ -373,7 +381,7 @@
  
      Returns
      -------
-@@ -577,9 +802,13 @@
+@@ -577,9 +803,13 @@
      BIG = np.iinfo(np.int64).max // 4
      ekey = epe_psu * span + epe_day
  
@@ -389,7 +397,7 @@
      ekey_hw = hw_psu[oe_] * span + hw_end[oe_]
  
      # BEFORE candidate: first heatwave with start > d in the same PSU
-@@ -641,8 +870,8 @@
+@@ -641,8 +871,8 @@
  #   cannot undo the jitter, so near-duplicates are *retained* (dropping them
  #   would require an arbitrary radius); instead we (a) report their
  #   prevalence, and (b) step02 stores the ERA5 / CHIRPS grid-cell ids of
@@ -400,7 +408,7 @@
  # * Hard-coded dataset-shape asserts are now soft checks (warn, don't crash)
  #   driven by config.expected_n_psu / expected_n_countries.
  #
-@@ -746,8 +975,9 @@
+@@ -746,8 +976,9 @@
          n_near += int(np.sum((d <= 10.0) & (sid[i] != sid[j])))
      df = df.drop(columns=["_gx", "_gy"])
      log.info("Near-duplicate diagnostic: %s cross-survey pairs within 10 km "
@@ -412,7 +420,7 @@
               f"{n_near:,}")
  
      out = paths.processed / "psu.parquet"
-@@ -771,20 +1001,6 @@
+@@ -771,20 +1002,6 @@
  print(psu_df.groupby('country').size().sort_values(ascending=False).head(8))
  
  
@@ -433,7 +441,7 @@
  # %% [markdown]
  # ## 4. Climate extraction (ERA5 + CHIRPS → daily parquet)
  #
-@@ -799,20 +1015,24 @@
+@@ -799,20 +1016,24 @@
  #   the grid-cell ids for BOTH products. PSU matched farther than
  #   cfg.max_match_km_* from the nearest cell, or matched to a CHIRPS cell
  #   that is all-NaN over the reference period (ocean / no-data), are FLAGGED
@@ -468,7 +476,7 @@
  #
  # **Cost**: the heaviest IO step (hours at 54,615 PSUs). Safe to interrupt and restart (it rebuilds from scratch).
  
-@@ -844,18 +1064,41 @@
+@@ -844,18 +1065,41 @@
      era5 = era5.sel(time=slice(start, end))
      chirps = chirps.sel(time=slice(start, end))
  
@@ -514,7 +522,7 @@
      return era5, chirps, common
  
  
-@@ -1024,14 +1267,30 @@
+@@ -1024,14 +1268,30 @@
  
  
  # %% [markdown]
@@ -551,7 +559,7 @@
  # The reference period (1985-2014) lies inside the analysis period
  # (1985-2024). If a single threshold is computed from all 30 reference years
  # and applied everywhere, days inside the base period are compared against
-@@ -1053,16 +1312,19 @@
+@@ -1053,16 +1313,19 @@
  # thresholds_precip.parquet         psu_idx, p95_base, n_wet_days,
  #                                   p95_reliable [, p95_y1985..p95_y2014]
  #                                   (in-base wet-day P95, leave-one-out)
@@ -576,7 +584,7 @@
  
  # %%
  import gc
-@@ -1078,6 +1340,8 @@
+@@ -1078,6 +1341,8 @@
  
  
  def _window_indices(half: int) -> list[np.ndarray]:
@@ -585,7 +593,7 @@
      doy = np.arange(DAYS_IN_YEAR)
      out = []
      for d in doy:
-@@ -1093,7 +1357,9 @@
+@@ -1093,7 +1358,9 @@
      year. Returned in the same (n_psu, 366[, n_yr]) layout as the calendar
      version so that step04 needs no change. LOO: percentile of the other
      n_yr-1 years. Zhang duplication is not defined for the pooled-annual
@@ -596,7 +604,7 @@
      n_psu, n_doy, n_yr = grid.shape
  
      def _pct(a):
-@@ -1154,7 +1420,7 @@
+@@ -1154,7 +1421,7 @@
                                          ["psu_idx", "date", "tmax"],
                                          psu_set=psu_block)
              pos = part["psu_idx"].map(psu_pos).to_numpy()
@@ -605,7 +613,7 @@
              grid[pos, doy, slot] = part["tmax"].to_numpy(np.float32)
              del part
  
-@@ -1201,7 +1467,9 @@
+@@ -1201,7 +1468,9 @@
  
  def _precip_thresholds(cfg, out_dir: Path, all_psu: np.ndarray,
                         chirps_valid: pd.Series) -> None:
@@ -616,7 +624,7 @@
  
      Only CHIRPS-eligible PSU receive thresholds; others get NaN and are
      excluded from EPE detection downstream.
-@@ -1232,8 +1500,10 @@
+@@ -1232,8 +1501,10 @@
  
      if cfg.in_base_correction != "none":
          # Leave-one-out wet-day P95 per in-base year (full Zhang duplication
@@ -629,7 +637,7 @@
          for yr in ref_years:
              loo = (wet.loc[wet["year"] != yr]
                        .groupby("psu_idx")["precip"].quantile(q)
-@@ -1247,6 +1517,27 @@
+@@ -1247,6 +1518,27 @@
               f"{int(out['p95_reliable'].sum()):,}", f"{len(out):,}")
  
  
@@ -657,7 +665,7 @@
  def run_step03_thresholds(cfg, out_dir: Path | None = None) -> None:
      out_dir = Path(out_dir or cfg.paths.processed)
      out_dir.mkdir(parents=True, exist_ok=True)
-@@ -1262,10 +1553,17 @@
+@@ -1262,10 +1554,17 @@
  
      _tmax_thresholds(cfg, out_dir, all_psu, rng)
      # precipitation thresholds do not depend on the Tmax mode: computed once,
@@ -677,7 +685,7 @@
      if out_dir.resolve() != cfg.paths.processed.resolve():
          shutil.copy(shared, out_dir / "thresholds_precip.parquet")
          log.info("thresholds_precip.parquet copied from shared root")
-@@ -1273,6 +1571,11 @@
+@@ -1273,6 +1572,11 @@
  for _mode in cfg.hw_threshold_modes:
      run_step03_thresholds(cfg, out_dir=set_mode(_mode))
  
@@ -689,7 +697,7 @@
  # %%
  for _mode, _D in MODE_DIRS.items():
      print(f"\n===== hw_threshold_mode = {_mode} =====")
-@@ -1297,14 +1600,16 @@
+@@ -1297,14 +1601,16 @@
  # ## 6–7. Heatwave detection + extreme-precipitation detection (single pass)
  #
  # step04_detect_events.py — Detect heatwaves and extreme precipitation events
@@ -708,7 +716,7 @@
  #            on a sub-threshold day, a MISSING day (NaN Tmax — the comparison
  #            is False, so a missing day can never bridge two runs), or a
  #            calendar gap. Runs crossing 31 Dec are preserved (all years are
-@@ -1312,12 +1617,14 @@
+@@ -1312,12 +1618,14 @@
  # Hot day   : a day belonging to a qualifying (>= min_days) heatwave run —
  #             this is the day-level flag used for co-occurrence statistics,
  #             NOT mere single-day exceedance.
@@ -729,7 +737,7 @@
  #
  # OUTPUTS (under <dirs>)
  # ----------------------
-@@ -1325,19 +1632,26 @@
+@@ -1325,19 +1633,26 @@
  #                    peak_tmax
  # epe.parquet        psu_idx, date, precip
  # doy_counts.parquet psu_idx, doy, n_valid, n_hwday, n_epe, n_joint,
@@ -763,7 +771,7 @@
  # fragile in semi-arid SSA because many PSUs have very few wet days inside
  # a ±15-day window outside the rainy season (the percentile would rest on a
  # handful of values, or none). The seasonality concern that motivates a
-@@ -1380,7 +1694,9 @@
+@@ -1380,7 +1695,9 @@
  
  def _attach_tmax_threshold(block: pd.DataFrame, base_map, inbase_maps,
                             cfg) -> pd.DataFrame:
@@ -774,7 +782,7 @@
      key = pd.MultiIndex.from_arrays([block["psu_idx"], block["doy"]])
      block["thr_tmax"] = key.map(base_map).astype("float32")
      if inbase_maps:
-@@ -1405,7 +1721,10 @@
+@@ -1405,7 +1722,10 @@
          for yr in cfg.ref_years:
              col = f"p95_y{yr}"
              if col not in pr.columns:
@@ -786,7 +794,7 @@
              m = pr.set_index("psu_idx")[col]
              sel = (yrs == yr).to_numpy()
              if sel.any():
-@@ -1428,6 +1747,8 @@
+@@ -1428,6 +1748,8 @@
      bs = cfg.psu_block_size
      n_blocks = (n_psu + bs - 1) // bs
      hw_parts, epe_parts, doy_parts = [], [], []
@@ -795,7 +803,7 @@
      log.info("Detecting events: %d blocks of %d PSU ...", n_blocks, bs)
  
      for b in range(n_blocks):
-@@ -1471,18 +1792,32 @@
+@@ -1471,18 +1793,32 @@
          # +/-1-day EPE neighbourhood within PSU. Rows are contiguous daily per
          # PSU by construction of step02, so a row shift is a day shift; the
          # first/last row of each PSU is guarded by the psu-equality test.
@@ -833,7 +841,7 @@
                          n_joint=("n_joint", "sum"),
                          n_joint_tol1=("n_joint_tol1", "sum"))
                     .reset_index())
-@@ -1498,6 +1833,11 @@
+@@ -1498,6 +1834,11 @@
      doy_counts = pd.concat(doy_parts, ignore_index=True)
      del hw_parts, epe_parts, doy_parts
      gc.collect()
@@ -845,7 +853,7 @@
  
      heatwaves["duration"] = heatwaves["duration"].astype("int16")
      for c in ("mean_tmax", "peak_tmax"):
-@@ -1510,6 +1850,8 @@
+@@ -1510,6 +1851,8 @@
      assert (heatwaves["peak_tmax"] >= heatwaves["mean_tmax"] - 1e-4).all()
      assert (doy_counts["n_joint"] <= doy_counts["n_hwday"]).all()
      assert (doy_counts["n_joint"] <= doy_counts["n_epe"]).all()
@@ -854,7 +862,7 @@
  
      heatwaves.to_parquet(out_dir / "heatwaves.parquet", index=False)
      epe.to_parquet(out_dir / "epe.parquet", index=False)
-@@ -1549,18 +1891,15 @@
+@@ -1549,18 +1892,15 @@
      print(f"\n===== hw_threshold_mode = {_mode} =====")
      # ---- checks: section 7 (EPE) -------------------------------------------------
      epe = pd.read_parquet(_D / "epe.parquet")
@@ -876,7 +884,7 @@
  import xclim
  print(xclim.__version__)
  
-@@ -1576,8 +1915,25 @@
+@@ -1576,8 +1916,25 @@
  #   spurious extreme drought) at PSU whose nearest CHIRPS cell is ocean /
  #   no-data. Monthly aggregates are now masked by a per-month VALID-DAY
  #   COVERAGE requirement (cfg.min_month_coverage, default 90%); months below
@@ -904,7 +912,7 @@
  # * SPI-3 (precipitation only, gamma distribution) is computed alongside
  #   SPEI-3. SPI breaks the PET<-temperature circularity of Axis III: a
  #   heatwave inflates Hargreaves PET and therefore depresses SPEI in its own
-@@ -1595,7 +1951,8 @@
+@@ -1595,7 +1952,8 @@
  # post-2014 SPEI values are out-of-calibration extrapolations.
  #
  # OUTPUT: spei3.parquet  psu_idx, year, month, precip_mm, pet_mm, spei3,
@@ -914,7 +922,7 @@
  
  # %%
  import gc
-@@ -1682,8 +2039,15 @@
+@@ -1682,8 +2040,15 @@
      warning (Begueria et al. 2014 favour PWM/L-moments; ML is the closest
      available alternative and must be reported in the Methods). SPI with
      gamma/APP requires the location parameter fixed at 0 (floc=0), which
@@ -931,7 +939,7 @@
      da = xr.DataArray(
          wb_wide.to_numpy(), dims=("time", "psu_idx"),
          coords={"time": wb_wide.index.values,
-@@ -1693,32 +2057,93 @@
+@@ -1693,32 +2058,93 @@
                cal_start=f"{cfg.ref_start_year}-01-01",
                cal_end=f"{cfg.ref_end_year}-12-31")
      name = f"{kind}{cfg.spei_scale_months}"
@@ -1049,7 +1057,7 @@
  
  
  def run_step05_spei(cfg, out_dir: Path | None = None) -> None:
-@@ -1728,13 +2153,13 @@
+@@ -1728,13 +2154,13 @@
  
      psu = pd.read_parquet(cfg.paths.processed / "psu.parquet",
                            columns=["psu_idx", "lat"])
@@ -1069,7 +1077,7 @@
      psu = psu[psu["psu_idx"].isin(eligible)].reset_index(drop=True)
      all_psu = psu["psu_idx"].to_numpy()
      lat_map = dict(zip(psu["psu_idx"], psu["lat"].astype(float)))
-@@ -1746,6 +2171,8 @@
+@@ -1746,6 +2172,8 @@
      parts = []
      sname = f"spei{cfg.spei_scale_months}"
      pname = f"spi{cfg.spei_scale_months}"
@@ -1078,7 +1086,7 @@
  
      for b in range(n_blocks):
          psu_block = all_psu[b * bs: min((b + 1) * bs, len(all_psu))]
-@@ -1783,8 +2210,21 @@
+@@ -1783,8 +2211,21 @@
                                   values="precip_mm")
                            .reindex(time_index).astype("float64"))
  
@@ -1102,7 +1110,7 @@
  
          out = monthly[["psu_idx", "year", "month",
                         "precip_mm", "pet_mm"]].merge(
-@@ -1801,8 +2241,48 @@
+@@ -1801,8 +2242,48 @@
  
      df = pd.concat(parts, ignore_index=True)
      del parts
@@ -1153,7 +1161,7 @@
  
      # ---- validation: ~N(0,1) on the calibration period --------------------
      ref = df[(df["year"] >= cfg.ref_start_year) & (df["year"] <= cfg.ref_end_year)]
-@@ -1813,8 +2293,9 @@
+@@ -1813,8 +2294,9 @@
                       "NaN rows whole period: %s",
                       col, v.mean(), v.std(), f"{df[col].isna().sum():,}")
              if abs(v.mean()) > 0.1 or abs(v.std() - 1) > 0.1:
@@ -1165,7 +1173,7 @@
  
      df.to_parquet(out_dir / "spei3.parquet", index=False)
      log.info("Wrote spei3.parquet (%s rows) in %.1f min",
-@@ -1825,14 +2306,22 @@
+@@ -1825,14 +2307,22 @@
  # %%
  # ---- checks: section 8 -------------------------------------------------------
  spei = pd.read_parquet(PROCESSED / "spei3.parquet")
@@ -1191,7 +1199,7 @@
  dr = spei.groupby("year")[f"is_drought_spei{cfg.spei_scale_months}"].mean()
  print("drought-month fraction by year (head/tail):")
  print(pd.concat([dr.head(3), dr.tail(3)]).round(3))
-@@ -1845,12 +2334,11 @@
+@@ -1845,12 +2335,11 @@
  #
  # AXIS I — multivariate co-occurrence (Zscheischler et al. 2020)
  #     EPE days falling inside a heatwave interval [start-tol, end+tol]
@@ -1209,7 +1217,7 @@
  #
  # AXIS II — temporal vicinity, PRIMARY = Event Coincidence Analysis
  #     (Donges et al. 2016). Unit of analysis: the HEATWAVE, with binary
-@@ -1861,14 +2349,19 @@
+@@ -1861,14 +2350,19 @@
  #     OVERLAP RULE: because the indicators are per-heatwave, an EPE lying in
  #     the windows of two heatwaves legitimately informs both indicators and
  #     is never *counted* twice — the double-counting problem of pair-level
@@ -1232,7 +1240,7 @@
  #
  # AXIS III — drought preconditioning
  #     PRIMARY: SPEI-3 of onset month MINUS cfg.axis3_precond_lag_months
-@@ -1876,7 +2369,10 @@
+@@ -1876,7 +2370,10 @@
  #     onset month itself integrates water balance concurrent with / posterior
  #     to the onset and is inflated by the heatwave's own PET (circularity).
  #     SENSITIVITIES: lag 0 (comparability with prior studies) and SPI-3
@@ -1244,7 +1252,7 @@
  #
  # AXIS II PRIMARY METRIC (v2): the after/before COUNT RATIO under UNIQUE attribution
  # (`attribute_unique`, core) — each EPE assigned to its single nearest heatwave; the
-@@ -2011,29 +2507,37 @@
+@@ -2011,29 +2508,37 @@
  
      # ---- Unique attribution (PRIMARY Axis-II metric) -----------------------
      # Vectorised `attribute_unique` (core) — the SAME function is applied to
@@ -1292,7 +1300,7 @@
          att["absoff"] = att["offset_days"].abs()
          att = att.sort_values(["psu_idx", "epe_date", "absoff", "start_date"],
                                kind="stable")
-@@ -2166,7 +2670,7 @@
+@@ -2166,7 +2671,7 @@
  # %% [markdown]
  # ### 10. Axis II — EPE within ±W days of heatwaves (ECA)
  #
@@ -1301,7 +1309,7 @@
  
  # %%
  for _mode, _D in MODE_DIRS.items():
-@@ -2179,8 +2683,10 @@
+@@ -2179,8 +2684,10 @@
      print(f"[secondary] precursor rate {ok.precursor.mean():.4f} | trigger rate "
            f"{ok.trigger.mean():.4f} | during rate {ok['during'].mean():.4f}")
      att = a2_attrib[~a2_attrib.truncated] if cfg.axis2_exclude_truncated else a2_attrib
@@ -1313,7 +1321,7 @@
            f"{int((att.position == 'during').sum()):,} | count ratio {na_ / max(1, nb_):.3f}")
      assert not a2_attrib.duplicated(["psu_idx", "epe_date"]).any()
      # brute-force window verification on a random sample of heatwaves
-@@ -2233,26 +2739,45 @@
+@@ -2233,26 +2740,45 @@
  #                      i.e. independence CONDITIONAL on the seasonal cycle.
  #     lmf_seasonal > 1 is the defensible claim of dependence beyond
  #     seasonality. Inputs: doy_counts.parquet from step04 (exact, no
@@ -1369,7 +1377,7 @@
  
  # %%
  import time
-@@ -2271,7 +2796,12 @@
+@@ -2271,7 +2797,12 @@
      psu = pd.read_parquet(cfg.paths.processed / "psu.parquet",
                            columns=["psu_idx", "country", "region"])
      gm = pd.read_parquet(cfg.paths.processed / "psu_gridmatch.parquet",
@@ -1383,7 +1391,7 @@
  
      joint_col = "n_joint_tol1" if cfg.axis1_day_tolerance == 1 else "n_joint"
  
-@@ -2285,12 +2815,16 @@
+@@ -2285,12 +2816,16 @@
      tot["e_naive"] = safe_ratio(tot["n_hot"] * tot["n_epe"], tot["n_valid"])
      tot["lmf_naive"] = safe_ratio(tot["n_joint"], tot["e_naive"])
      tot["lmf_seasonal"] = safe_ratio(tot["n_joint"], tot["e_seasonal"])
@@ -1403,7 +1411,7 @@
  
      def pooled(df, label, unit_col):
          """Pooled LMF over the group + bootstrap CI resampling `unit_col`."""
-@@ -2306,7 +2840,8 @@
+@@ -2306,7 +2841,8 @@
          for k in range(cfg.n_lmf_surrogates):
              idx = rng.integers(0, n, n)
              boot[k] = nj[idx].sum() / max(es[idx].sum(), 1e-12)
@@ -1413,7 +1421,7 @@
                      lmf_naive=float(obs_n), lmf_seasonal=float(obs_s),
                      lmf_seasonal_lo=float(np.quantile(boot, 0.025)),
                      lmf_seasonal_hi=float(np.quantile(boot, 0.975)))
-@@ -2323,9 +2858,9 @@
+@@ -2323,9 +2859,9 @@
      cont = out[(out["scale"] == "Continental") & (out["unit"] == "era5_cell")]
      if len(cont):
          r = cont.iloc[0]
@@ -1426,7 +1434,7 @@
  
  
  # =============================================================================
-@@ -2347,7 +2882,12 @@
+@@ -2347,7 +2883,12 @@
  
  
  def _load_axis2_for_null(cfg, in_dir: Path):
@@ -1439,7 +1447,7 @@
      epe = pd.read_parquet(in_dir / "epe.parquet", columns=["psu_idx", "date"])
      psu = pd.read_parquet(cfg.paths.processed / "psu.parquet",
                            columns=["psu_idx", "country", "region"])
-@@ -2362,17 +2902,70 @@
+@@ -2362,17 +2903,70 @@
      return hw, epe_psu, epe_day, epe_keys
  
  
@@ -1516,7 +1524,7 @@
          onset-doy distribution of the region (same year).
      Results per (scale x onset season): axis2_null_region.parquet;
      Continental/ALL: axis2_null_continental.parquet; raw draws:
-@@ -2397,6 +2990,44 @@
+@@ -2397,6 +2991,44 @@
      n, ny = len(hw), len(years)
      groups = _axis2_groups(hw, cfg)
  
@@ -1561,7 +1569,7 @@
      # ---- observed ------------------------------------------------------------
      prec_o = hw["precursor"].to_numpy(bool); trig_o = hw["trigger"].to_numpy(bool)
      idx_o, pos_o, _ = attribute_unique(hw_psu, s_obs, e_obs, epe_psu, epe_day, W)
-@@ -2409,10 +3040,12 @@
+@@ -2409,10 +3041,12 @@
                        count_ratio_obs=na / nb if nb > 0 else np.nan)
  
      # ---- surrogates ------------------------------------------------------------
@@ -1576,7 +1584,7 @@
              for g in groups}
      if cfg.null_mode == "region_pool":
          pool_lab = hw["region"].astype(str).to_numpy()
-@@ -2420,10 +3053,35 @@
+@@ -2420,10 +3054,35 @@
      t0 = time.time()
      for k in range(n_perm):
          if cfg.null_mode == "psu_window":
@@ -1616,7 +1624,7 @@
          elif cfg.null_mode == "region_pool":
              sur_doy = np.empty(n, dtype="int64")
              for lab, pool in pools.items():
-@@ -2445,6 +3103,8 @@
+@@ -2445,6 +3104,8 @@
              null[g]["precursor"][k] = p[mv].mean()
              null[g]["trigger"][k] = t[mv].mean()
              null[g]["count_ratio"][k] = na / nb if nb > 0 else np.nan
@@ -1625,7 +1633,7 @@
          if (k + 1) % max(1, n_perm // 10) == 0:
              log.info("  perm %d/%d | %.1f min", k + 1, n_perm, (time.time() - t0) / 60)
  
-@@ -2467,24 +3127,50 @@
+@@ -2467,24 +3128,50 @@
              count_ratio_null_lo=q(nl["count_ratio"], .025),
              count_ratio_null_med=q(nl["count_ratio"], .5),
              count_ratio_null_hi=q(nl["count_ratio"], .975),
@@ -1683,7 +1691,7 @@
               c["precursor_null_lo"], c["precursor_null_hi"])
  
  
-@@ -2516,6 +3202,64 @@
+@@ -2516,6 +3203,64 @@
      pd.DataFrame(rows).to_parquet(out_dir / "axis2_window_sensitivity.parquet", index=False)
  
  
@@ -1748,7 +1756,7 @@
  def run_step07_significance(cfg, in_dir: Path | None = None,
           out_dir: Path | None = None) -> None:
      in_dir = Path(in_dir or cfg.paths.processed)
-@@ -2524,6 +3268,7 @@
+@@ -2524,6 +3269,7 @@
      lmf_tables(cfg, in_dir, out_dir)
      axis2_null(cfg, in_dir, out_dir)
      axis2_window_sensitivity(cfg, in_dir, out_dir)
@@ -1756,7 +1764,7 @@
  
  # (definitions only — run cells follow)
  
-@@ -2536,7 +3281,7 @@
+@@ -2536,7 +3282,7 @@
      SIG = _D / "significance"; SIG.mkdir(exist_ok=True)
      lmf_tables(cfg, _D, SIG)
      lmf = pd.read_parquet(SIG / "lmf_by_scale.parquet")
@@ -1765,7 +1773,7 @@
            "lmf_seasonal_lo", "lmf_seasonal_hi"]].to_string(index=False))
  
  
-@@ -2544,15 +3289,21 @@
+@@ -2544,15 +3290,21 @@
  for _mode, _D in MODE_DIRS.items():
      print(f"\n===== hw_threshold_mode = {_mode} =====")
      # ---- 12b. Axis II strict null (SLOW: n_perm x [ECA + unique attribution]) ----
@@ -1791,7 +1799,7 @@
      print(pd.read_parquet(SIG / "axis2_window_sensitivity.parquet")
            .query("scale == 'Continental'")[["window_days", "n_hw", "count_ratio", "rate_diff"]]
            .round(4).to_string(index=False))
-@@ -2572,13 +3323,16 @@
+@@ -2572,13 +3324,16 @@
  #   practice (Bevacqua et al. 2022; Mukherjee & Mishra 2021).
  # * SECONDARY ("method a", event-weighted pooled metric) is written next to
  #   it in the same files for the SI.
@@ -1815,7 +1823,7 @@
  # * Axis II rates are computed on NON-TRUNCATED heatwaves only.
  #
  # OUTPUTS under <out_dir>/aggregations/ :
-@@ -2589,8 +3343,8 @@
+@@ -2589,8 +3344,8 @@
  #   axis2_by_country  (n_before / n_after / count_ratio everywhere = PRIMARY),
  #   axis3_by_psu, axis3_by_year_{continental,region,country},
  #   axis3_by_psu_decade, axis3_by_region_decade, axis3_by_onset_month_region
@@ -1826,7 +1834,7 @@
  
  # %%
  from pathlib import Path
-@@ -2605,8 +3359,9 @@
+@@ -2605,8 +3360,9 @@
      psu = pd.read_parquet(cfg.paths.processed / "psu.parquet",
                            columns=["psu_idx", "country", "region"])
      gm = pd.read_parquet(cfg.paths.processed / "psu_gridmatch.parquet",
@@ -1838,7 +1846,7 @@
      psu["scale"] = "Continental"
  
      hw = pd.read_parquet(in_dir / "axis3.parquet")    # = all heatwaves + SPEI
-@@ -2657,11 +3412,15 @@
+@@ -2657,11 +3413,15 @@
  # =============================================================================
  def axis1_aggregations(cfg, in_dir, agg_dir, psu, hw):
      a1 = pd.read_parquet(in_dir / "axis1.parquet",
@@ -1856,7 +1864,7 @@
      hw_e = hw[hw["psu_idx"].isin(elig["psu_idx"])]
  
      # ---- per PSU (pooled years) ------------------------------------------
-@@ -2683,11 +3442,13 @@
+@@ -2683,11 +3443,13 @@
      # ---- by year x scale -----------------------------------------------------
      def by_year(keys, name, collapse=False):
          unit = "era5_cell" if collapse else "psu_idx"
@@ -1875,7 +1883,7 @@
          hwy = (hw_e.groupby([unit if collapse else "psu_idx", "hw_year"],
                              observed=True)
                     .size().rename("n_hw").reset_index()
-@@ -2736,17 +3497,24 @@
+@@ -2736,17 +3498,24 @@
      by_year(["scale"], "axis1_by_year_continental")
      by_year(["region"], "axis1_by_year_region")
      by_year(["country"], "axis1_by_year_country")
@@ -1909,7 +1917,7 @@
      for c in ("n_hw", "n_cooccur_days", "n_hw_with_cooc"):
          out[c] = out[c].fillna(0).astype("int32")
      out["cooccur_days_per_year"] = out["n_cooccur_days"] / 10.0
-@@ -2760,9 +3528,17 @@
+@@ -2760,9 +3529,17 @@
      n_years = cfg.study_end_year - cfg.study_start_year + 1
  
      def grp(keys, extra):
@@ -1929,7 +1937,7 @@
          n_el = elig.groupby(keys, observed=True)["psu_idx"].nunique().rename("n_units").reset_index()
          r = r.merge(n_el, on=keys, how="left")
          span = 10.0 if extra == ["decade"] else float(n_years)
-@@ -2800,7 +3576,7 @@
+@@ -2800,7 +3577,7 @@
      a2["decade"] = assign_decade(a2["year"], cfg.decade_bounds)
      if cfg.axis2_exclude_truncated:
          a2 = a2[~a2["truncated"]]
@@ -1938,7 +1946,7 @@
      for c in ("precursor", "trigger", "during"):
          a2[c] = a2[c].astype(float)
  
-@@ -2809,12 +3585,12 @@
+@@ -2809,12 +3586,12 @@
      att = att.merge(psu, on="psu_idx", how="left")
      if cfg.axis2_exclude_truncated:
          att = att[~att["truncated"]]
@@ -1953,7 +1961,7 @@
  
      # ---- per PSU (pooled) -----------------------------------------------------
      per = (a2.groupby("psu_idx", observed=True)
-@@ -2872,8 +3648,6 @@
+@@ -2872,8 +3649,6 @@
      by_year(["scale"], "axis2_by_year_continental")
      by_year(["region"], "axis2_by_year_region")
      by_year(["country"], "axis2_by_year_country")
@@ -1962,7 +1970,7 @@
  
      # ---- onset month x region (seasonality; Figs S5b, S10) -----------------------
      def om(keys):
-@@ -2908,7 +3682,17 @@
+@@ -2908,7 +3683,17 @@
  # AXIS III — antecedent drought (all lags)
  # =============================================================================
  def axis3_aggregations(cfg, in_dir, agg_dir, psu, hw):
@@ -1981,7 +1989,7 @@
      lags = tuple(cfg.axis3_lags)
      sens_lags = [L for L in lags[1:]]                   # non-primary lags (e.g. 0)
      a3["dpc"] = a3["drought_precond"].astype(float)
-@@ -3005,13 +3789,14 @@
+@@ -3005,13 +3790,14 @@
          out = _complete_years(a.merge(b, on=keys + ["year"], how="outer"),
                                keys, cfg.study_years,
                                ["n_hw", "n_hw_spei", "n_hw_drought", "n_hw_nodrought"])
@@ -1998,7 +2006,7 @@
  
      # ---- decade tables ---------------------------------------------------------
      _write(per_psu(a3, ["decade"]), agg_dir, "axis3_by_psu_decade")
-@@ -3027,7 +3812,7 @@
+@@ -3027,7 +3813,7 @@
      # ---- onset month x region (Figs S5c,d) ---------------------------------------
      def om(keys):
          r = method_a(a3, keys + ["onset_month"])
@@ -2007,7 +2015,7 @@
          r = r.merge(n_el, on=keys, how="left")
          r["hw_per_unit_year"] = r["n_hw"] / (r["n_units"] * len(cfg.study_years))
          return r
-@@ -3087,17 +3872,19 @@
+@@ -3087,17 +3873,19 @@
  #
  # For every (scale, metric) pair:
  #   - Theil-Sen slope, reported per decade (Sen 1968; Theil 1950);
@@ -2032,7 +2040,7 @@
  
  # %%
  from pathlib import Path
-@@ -3116,8 +3903,7 @@
+@@ -3116,8 +3904,7 @@
                "pct_drought_lag0_b", "pct_drought_lag0_a",   # lag-0 comparison
                "diff_duration", "diff_peak"],
  }
@@ -2042,7 +2050,7 @@
  
  
  def _trend_rows(df: pd.DataFrame, scale_col, metrics, rng,
-@@ -3133,16 +3919,28 @@
+@@ -3133,16 +3920,28 @@
              if m not in sub.columns:
                  continue
              y = sub[m].to_numpy(float)
@@ -2075,7 +2083,7 @@
      return rows
  
  
-@@ -3171,7 +3969,8 @@
+@@ -3171,7 +3970,8 @@
  
      trends = pd.DataFrame(all_rows)
  
@@ -2085,7 +2093,7 @@
      trends["mk_significant_fdr"] = False
      cmask = trends["scope"] == "country"
      for (axis, m), idx in trends[cmask].groupby(["axis", "metric"]).groups.items():
-@@ -3183,7 +3982,7 @@
+@@ -3183,7 +3983,7 @@
  
      trends = trends[["axis", "scope", "scale", "metric", "slope_per_decade",
                       "ci_low_per_decade", "ci_high_per_decade", "mk_z",
@@ -2094,7 +2102,7 @@
      trends.to_parquet(out / "all_trends_summary.parquet", index=False)
      log.info("Wrote all_trends_summary.parquet (%s rows)", f"{len(trends):,}")
  
-@@ -3216,6 +4015,9 @@
+@@ -3216,6 +4016,9 @@
      epe = pd.read_parquet(_D / "epe.parquet")
      a2 = pd.read_parquet(_D / "axis2_hw.parquet")
      a3 = pd.read_parquet(_D / "axis3.parquet")
@@ -2104,7 +2112,7 @@
      print(f"PSU {len(psu_df):,} | CHIRPS-eligible {int(gm.chirps_valid.sum()):,}"
            f" | unique ERA5 cells {gm.era5_cell.nunique():,} "
            f"(pseudo-replication ratio {len(gm)/gm.era5_cell.nunique():.1f} PSU/cell)")
-@@ -3246,7 +4048,7 @@
+@@ -3246,7 +4049,7 @@
  # | 16.1 | Fig 1 maps, Fig 3 decade maps |
  # | 16.2 | Fig 2 annual series + Theil–Sen (from step 14) |
  # | 16.3 | Fig 4 Axis-II asymmetry, Fig 5 Axis-III amplification |
@@ -2113,7 +2121,7 @@
  # | 16.5 | S2–S4 geo panels, S3b/S4b paired |
  # | 16.6 | S5 seasonality, S6 comparative, S8 latitude, S9 decadal, S10 monthly stratification, Table S1 |
  # | 16.7 | null test (primary + secondary metric, seasonal), sensitivity (W, SPEI threshold, lag, SPI) |
-@@ -3377,8 +4179,13 @@
+@@ -3377,8 +4180,13 @@
      if r is None or not np.isfinite(r["slope_per_decade"]):
          return ""
      star = "*" if bool(r["mk_significant_fdr"]) else ""
@@ -2129,7 +2137,7 @@
  
  
  def series_by_scale(D, axis, metric):
-@@ -3524,8 +4331,9 @@
+@@ -3524,8 +4332,9 @@
                  ax.set_ylabel(ylab, fontsize=6.5)
                  ax.set_title(title, fontsize=7.5, fontweight="bold", pad=4, loc="left")
                  panel_label(ax, "abcd"[i], x=-0.32, y=1.08, size=13)
@@ -2141,7 +2149,7 @@
      savefig(fig, FIG, "fig02_temporal_trends")
  
  
-@@ -3544,6 +4352,8 @@
+@@ -3544,6 +4353,8 @@
      W = cfg.axis2_window_days
      bc = agg(D, "axis2_by_country")
      att = pd.read_parquet(D / "axis2_attrib.parquet")
@@ -2150,7 +2158,7 @@
      att = att[~att["truncated"] & att["position"].isin(["before", "after"])].copy()
      att["decade"] = assign_decade(pd.to_datetime(att["start_date"]).dt.year, cfg.decade_bounds).astype(str)
      rd = agg(D, "axis2_by_region_decade"); rd["decade"] = rd["decade"].astype(str)
-@@ -3613,7 +4423,8 @@
+@@ -3613,7 +4424,8 @@
  
  def fig05_drought(D, FIG):
      a3 = pd.read_parquet(D / "axis3.parquet").merge(PSU_GEO[["psu_idx", "region"]], on="psu_idx", how="left")
@@ -2160,7 +2168,7 @@
      rd = agg(D, "axis3_by_region_decade"); rd["decade"] = rd["decade"].astype(str)
      fig = plt.figure(figsize=(14, 5), facecolor="white")
      gs = GridSpec(1, 3, figure=fig, wspace=0.35)
-@@ -3679,78 +4490,217 @@
+@@ -3679,78 +4491,217 @@
      return "None prominent"
  
  
@@ -2420,7 +2428,7 @@
      ax = fig.add_subplot(gs[1, 2])
      P = trans.to_numpy(float); P = 100 * P / max(1, P.sum())
      im = ax.imshow(P, cmap="Blues", vmin=0, vmax=max(1, P.max()))
-@@ -3763,16 +4713,20 @@
+@@ -3763,16 +4714,20 @@
              if P[i, j] >= 0.5:
                  ax.text(j, i, f"{P[i, j]:.1f}", ha="center", va="center", fontsize=6,
                          color="white" if P[i, j] > .6 * P.max() else "#333")
@@ -2447,7 +2455,7 @@
      return shares
  
  
-@@ -3870,7 +4824,7 @@
+@@ -3870,7 +4825,7 @@
  def figS_geo_paired(D, FIG, axis, col_a, col_b, lab_a, lab_b, title, filename):
      t = agg(D, f"{axis}_by_year_country")
      n_units = PSU_GEO.groupby("country").size()               # all PSU of the country
@@ -2456,7 +2464,7 @@
          n_units = t.groupby("country")["n_units_eligible"].max()
      ser = {}
      for c, g in t.groupby("country"):
-@@ -3953,7 +4907,7 @@
+@@ -3953,7 +4908,7 @@
          return t.set_index("year").reindex(YEARS)
      fig = plt.figure(figsize=(15, 7), facecolor="white"); gs = GridSpec(2, 5, figure=fig, hspace=.4, wspace=.3)
      rows = [("a", a2c, a2r, "n_before", "n_after", "n_units_eligible", "#4575b4", "#d73027", "EPE before HW", "EPE after HW", "EPE / PSU / year"),
@@ -2465,7 +2473,7 @@
      for i, (lab, c, r, ca, cb, cn, cola, colb, la, lb, ylab) in enumerate(rows):
          data = {}
          for sc in SCALES:
-@@ -4036,12 +4990,15 @@
+@@ -4036,12 +4991,15 @@
              r = t[(t["region"] == sc) & (t["onset_month"] == j + 1)]
              if len(r):
                  R[i, j] = r["count_ratio"].iloc[0]; N[i, j] = r["n_before"].iloc[0] + r["n_after"].iloc[0]
@@ -2483,7 +2491,7 @@
      for i in range(len(SCALES)):
          for j in range(12):
              if not reliable[i, j] or not np.isfinite(R[i, j]):
-@@ -4056,14 +5013,16 @@
+@@ -4056,14 +5014,16 @@
      tv = [.125, .25, .5, 1, 2, 4, 8, 16]; cb.set_ticks(np.log2(tv)); cb.set_ticklabels([str(v) for v in tv]); cb.set_label("Ratio (log2 scale)")
      ax = fig.add_subplot(gs[0, 1]); frac = []; med = []
      for i in range(len(SCALES)):
@@ -2503,7 +2511,7 @@
      savefig(fig, FIG, "figS10_monthly_stratification")
  
  
-@@ -4120,8 +5079,9 @@
+@@ -4120,8 +5080,9 @@
      ax.errorbar(x, t["count_ratio_null_med"], yerr=[t["count_ratio_null_med"] - t["count_ratio_null_lo"],
                  t["count_ratio_null_hi"] - t["count_ratio_null_med"]], fmt="s", color="k", ms=4, capsize=4, lw=1,
                  label="null median & 95% envelope")
@@ -2515,7 +2523,7 @@
      ax.axhline(1, color="#888", lw=.5, ls="--"); ax.set_xticks(x); ax.set_xticklabels(SCALES)
      ax.set_ylabel("EPE after / before HW (unique attribution)")
      ax.set_title("PRIMARY metric vs. strict null (%s)" % mode_txt, fontsize=9, fontweight="bold")
-@@ -4134,8 +5094,6 @@
+@@ -4134,8 +5095,6 @@
                  fmt="none", ecolor="k", capsize=3, lw=1)
      ax.errorbar(x + .18, (t["trigger_null_lo"] + t["trigger_null_hi"]) / 2, yerr=(t["trigger_null_hi"] - t["trigger_null_lo"]) / 2,
                  fmt="none", ecolor="k", capsize=3, lw=1, label="null 95% envelope")
@@ -2524,7 +2532,7 @@
      ax.set_xticks(x); ax.set_xticklabels(SCALES); ax.set_ylabel(f"Share of HW with ≥1 EPE within {cfg.axis2_window_days} d")
      ax.set_title("Secondary metric: ECA fractions vs. null", fontsize=9, fontweight="bold")
      ax.legend(fontsize=6, loc="upper center", bbox_to_anchor=(.5, -.12), ncol=3); panel_label(ax, "b")
-@@ -4157,11 +5115,14 @@
+@@ -4157,11 +5116,14 @@
      ax.set_xlabel("EPE after / before HW"); ax.set_ylabel("Count"); ax.set_title("Null distribution, Continental", fontsize=9, fontweight="bold")
      ax.legend(fontsize=6); panel_label(ax, "d")
      savefig(fig, FIG, "figS_axis2_null_test")
@@ -2540,7 +2548,7 @@
      a3 = a3.merge(PSU_GEO[["psu_idx", "region"]], on="psu_idx", how="left"); a3["year"] = pd.to_datetime(a3["start_date"]).dt.year
      sname = f"spei{cfg.spei_scale_months}"; pname = f"spi{cfg.spei_scale_months}"
      Ws = sorted(ws["window_days"].unique()); thr = list(cfg.spei_threshold_sens)
-@@ -4221,7 +5182,8 @@
+@@ -4221,7 +5183,8 @@
          rows.append(dict(threshold=t, pct_hw=100 * (s[sname] < t).mean(),
                           duration_ratio=s.loc[s[sname] < t, "duration"].mean() / s.loc[~(s[sname] < t), "duration"].mean(),
                           trend_pct_per_decade=ts[0] * 10 if ts else np.nan,
@@ -2550,7 +2558,7 @@
      pd.DataFrame(rows).round(4).to_csv(FIG / "figS_sensitivity_spei_threshold_table.csv", index=False)
      ws.round(4).to_csv(FIG / "figS_sensitivity_window_table.csv", index=False)
  
-@@ -4271,7 +5233,8 @@
+@@ -4271,7 +5234,8 @@
  
  def fig_drought_baseline(FIG):
      spei = pd.read_parquet(PROCESSED / "spei3.parquet"); col = f"spei{cfg.spei_scale_months}"
@@ -2560,7 +2568,7 @@
      d = d.merge(PSU_GEO, on="psu_idx", how="left")
      fig = plt.figure(figsize=(8, 8), facecolor="white"); gs = GridSpec(2, 1, figure=fig, height_ratios=[1, .04], hspace=.05)
      ax = map_ax(fig, gs[0]); sc = map_scatter(ax, d, "pct_months_drought", cmap="YlOrBr", norm=mcolors.Normalize(0, 40), s=1.2)
-@@ -4285,3 +5248,12 @@
+@@ -4285,3 +5249,12 @@
  if len(MODE_DIRS) > 1:
      fig_mode_comparison(_ROOT_FIG)
  

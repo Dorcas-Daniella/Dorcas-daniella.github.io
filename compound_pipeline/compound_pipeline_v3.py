@@ -69,6 +69,7 @@ _h = logging.StreamHandler()
 _h.setFormatter(logging.Formatter("%(asctime)s | %(message)s", "%H:%M:%S"))
 log.addHandler(_h)
 log.setLevel(logging.INFO)
+log.propagate = False              # no duplicate lines if the root logger has a handler
 
 print("pandas", pd.__version__, "| pyarrow", pyarrow.__version__,
       "| xarray", xr.__version__, "| xclim", xclim.__version__)
