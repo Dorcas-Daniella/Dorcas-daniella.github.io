@@ -135,3 +135,13 @@ Ensuite :
 |---|---|---|---|
 | Permutations par mode | `cfg.n_null_permutations_by_mode = {"calendar": 1000, "annual": 1000}` (calendar = mode principal, annual = mode de comparaison ; 1000 dans les deux modes, choix retenu pour l’exécution finale). Repli sur `n_null_permutations` si le paramètre est absent. Nombre effectif enregistré dans le manifeste. | Test unitaire (11 permutations en annual) ; e2e (60 / 40) | Vérifiée (synthétique) |
 | Décomposition du ratio | Le null conserve `n_before` et `n_after` à chaque permutation (`axis2_null_draws.parquet`). La table `axis2_null_region.parquet` ajoute leurs enveloppes (`n_before_null_lo/med/hi`, `n_after_null_lo/med/hi`) et `before_obs_over_null_med`, `after_obs_over_null_med` : < 1 = déficit, > 1 = excès par rapport au calendrier saisonnier. Le produit de ces deux rapports approche `count_ratio_obs / count_ratio_null_med` sans l'égaler, la médiane d'un ratio différant du ratio des médianes. | Test unitaire (cohérence draws / ratio / médianes) ; e2e | Vérifiée (synthétique) |
+
+## Ajouts v3.3 (affichage seulement ; aucun résultat modifié)
+
+| Point | Modification | Vérification | Statut |
+|---|---|---|---|
+| Journal en double | `log.propagate = False` (cellule 2) : chaque message ne s'affiche plus qu'une fois, même si une bibliothèque a configuré le logger racine. | Tests unitaires 29/29 | Appliquée |
+| Cartes Axe II (Fig 1b, Fig 3b) | Les PSU ayant des HW mais aucun EPE attribué avant (`n_before = 0`, ratio indéfini) étaient retirées des cartes et ressemblaient à des zones sans PSU. Elles sont maintenant tracées en gris, avec une légende « no EPE before HW (ratio undefined) ». Leur nombre est écrit dans le log, par carte et par décennie. | Test sur un petit tableau (2 PSU indéfinies tracées, PSU non éligible exclue) ; e2e 55/55 | Vérifiée (synthétique) |
+| Barre de couleur Axe II | `extend="max"` au lieu de `"both"` : un ratio ne peut pas être négatif. | e2e | Appliquée |
+| Libellé Fig 3 | « (per decade) » → « , by decade » : valeur de la décennie, et non pente par décennie. | e2e | Appliquée |
+| Avertissements cartopy | `edgecolor=` au lieu de `color=` pour les côtes et frontières : supprime les avertissements « facecolor will have no effect ». | e2e : aucun avertissement de ce type | Appliquée |
