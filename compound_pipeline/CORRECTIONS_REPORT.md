@@ -141,7 +141,7 @@ Ensuite :
 | Point | Modification | Vérification | Statut |
 |---|---|---|---|
 | Journal en double | `log.propagate = False` (cellule 2) : chaque message ne s'affiche plus qu'une fois, même si une bibliothèque a configuré le logger racine. | Tests unitaires 29/29 | Appliquée |
-| Cartes Axe II (Fig 1b, Fig 3b) | Les PSU ayant des HW mais aucun EPE attribué avant (`n_before = 0`, ratio indéfini) étaient retirées des cartes et ressemblaient à des zones sans PSU. Elles sont maintenant tracées en gris, avec une légende « no EPE before HW (ratio undefined) ». Leur nombre est écrit dans le log, par carte et par décennie. | Test sur un petit tableau (2 PSU indéfinies tracées, PSU non éligible exclue) ; e2e 55/55 | Vérifiée (synthétique) |
+| Cartes Axe II (Fig 1b, Fig 3b) | Les PSU ayant des HW mais aucun EPE attribué avant (`n_before = 0`, ratio indéfini) étaient retirées des cartes et ressemblaient à des zones sans PSU. Elles sont maintenant tracées en gris ; la classe grise figure dans la légende, sous forme d'une case « undefined » placée devant la barre de couleur. Leur nombre est écrit dans le log, par carte et par décennie. | Test sur un petit tableau (2 PSU indéfinies tracées, PSU non éligible exclue) ; e2e 55/55 ; rendu de la légende contrôlé visuellement | Vérifiée (synthétique) |
 | Barre de couleur Axe II | `extend="max"` au lieu de `"both"` : un ratio ne peut pas être négatif. | e2e | Appliquée |
 | Libellé Fig 3 | « (per decade) » → « , by decade » : valeur de la décennie, et non pente par décennie. | e2e | Appliquée |
 | Avertissements cartopy | `edgecolor=` au lieu de `color=` pour les côtes et frontières : supprime les avertissements « facecolor will have no effect ». | e2e : aucun avertissement de ce type | Appliquée |

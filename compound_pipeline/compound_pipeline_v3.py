@@ -4243,18 +4243,30 @@ def _norm_for(axis, values):
 UNDEF_COLOR = "#b0b0b0"
 
 
-def plot_undefined_ratio(ax, df, legend=True):
+def plot_undefined_ratio(ax, df):
     """Axis II maps: PSU with heatwaves but no EPE attributed BEFORE them have
     an undefined after/before ratio. They are drawn in grey (instead of being
     dropped, which would look like 'no PSU'); returns their count."""
     u = df[df["n_before"].eq(0) & df["count_ratio"].isna()]
     if len(u):
         map_scatter(ax, u, c=UNDEF_COLOR, s=0.6, zorder=3)
-    if legend:
-        ax.legend(handles=[plt.Line2D([0], [0], marker="o", ls="", color=UNDEF_COLOR, ms=3,
-                                      label="no EPE before HW (ratio undefined)")],
-                  loc="lower left", fontsize=6, frameon=False, handletextpad=0.2)
     return len(u)
+
+
+def undefined_swatch(fig, cax, frac=0.06, gap=0.05, fontsize=6):
+    """Shrink the colourbar axes `cax` from the left and put a grey 'undefined'
+    box in front of it, so the grey class is read in the legend like a colour."""
+    p = cax.get_position()
+    w = p.width * frac
+    cax.set_position([p.x0 + w + p.width * gap, p.y0, p.width - w - p.width * gap, p.height])
+    sw = fig.add_axes([p.x0, p.y0, w, p.height])
+    sw.set_facecolor(UNDEF_COLOR); sw.set_yticks([])
+    sw.set_xticks([0.5]); sw.set_xlim(0, 1)
+    sw.set_xticklabels(["undefined"], fontsize=fontsize)
+    sw.tick_params(length=0)
+    for sp in sw.spines.values():
+        sp.set_linewidth(0.5)
+    return sw
 
 
 def fig01_spatial(D, FIG):
@@ -4273,7 +4285,10 @@ def fig01_spatial(D, FIG):
         sc = map_scatter(ax, df, col, cmap=MAP_CFG[axis]["cmap"], norm=_norm_for(axis, df[col].to_numpy()))
         ax.set_title(AXIS_NAMES[axis], fontsize=9, fontweight="bold", pad=6)
         panel_label(ax, lab, x=0.0, y=1.02)
-        cb = fig.colorbar(sc, cax=fig.add_subplot(gs[1, j]), orientation="horizontal",
+        cax = fig.add_subplot(gs[1, j])
+        if axis == "axis2":
+            undefined_swatch(fig, cax)
+        cb = fig.colorbar(sc, cax=cax, orientation="horizontal",
                           extend=MAP_CFG[axis]["extend"])
         cb.set_label(AXIS_PSU_LABELS[axis], fontsize=7)
         cb.ax.tick_params(labelsize=6)
@@ -4296,7 +4311,7 @@ def fig03_decades(D, FIG):
             ax = map_ax(fig, gs[2 * i, j])
             sub = t[t["decade"] == dec]
             if axis == "axis2":
-                nu = plot_undefined_ratio(ax, sub[sub["n_hw"] > 0], legend=(j == 0))
+                nu = plot_undefined_ratio(ax, sub[sub["n_hw"] > 0])
                 log.info("fig03 axis2 %s: %d PSU with HW but no EPE before HW (grey)", dec, nu)
             if len(sub.dropna(subset=[col])):
                 sc = map_scatter(ax, sub, col, cmap=MAP_CFG[axis]["cmap"], norm=norm)
@@ -4310,6 +4325,8 @@ def fig03_decades(D, FIG):
             pos = gs[2 * i + 1, :].get_position(fig)
             cax = fig.add_axes([pos.x0 + pos.width * .15, pos.y0 + pos.height * .3,
                                 pos.width * .7, pos.height * .4])
+            if axis == "axis2":
+                undefined_swatch(fig, cax, frac=0.035, gap=0.02)
             cb = fig.colorbar(sc, cax=cax, orientation="horizontal", extend=MAP_CFG[axis]["extend"])
             cb.set_label(AXIS_PSU_LABELS[axis] + ", by decade", fontsize=7)
             cb.ax.tick_params(labelsize=6)
