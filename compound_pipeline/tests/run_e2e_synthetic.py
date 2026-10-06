@@ -28,6 +28,9 @@ for k, v in {"n_null_permutations": 60, "n_lmf_surrogates": 60, "n_bootstrap": 6
 src, n = re.subn(r'n_null_permutations_by_mode=\{[^}]*\}',
                  'n_null_permutations_by_mode={"calendar": 60, "annual": 40}', src, count=1)
 assert n == 1, "n_null_permutations_by_mode"
+for k in ("regime_min_support_axis2", "regime_min_support_axis3"):   # diagnostics-only path
+    src, n = re.subn(rf"\b{k}=\d+", f"{k}=None", src, count=1)
+    assert n == 1, k
 run_file = work / "pipeline_e2e.py"
 run_file.write_text(src)
 g = runpy.run_path(str(run_file), run_name="__main__")
