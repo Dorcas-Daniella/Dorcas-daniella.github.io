@@ -5094,6 +5094,8 @@ def tableS01(D, FIG):
     a3 = agg(D, "axis3_by_year_country").groupby("country")[["n_hw", "n_hw_spei", "n_hw_drought"]].sum()
     a3["Pct_HW_drought"] = 100 * a3["n_hw_drought"] / a3["n_hw_spei"].replace(0, np.nan)
     tab = (p1.join(p2).join(a3)).reset_index()
+    # same unit as the Axis-I trend (days / PSU / yr); the 40-yr total is kept in the CSV
+    tab["CCE_days_per_PSU_yr"] = tab["CCE_days_per_PSU"] / len(YEARS)
     tab["Region"] = tab["country"].map(COUNTRY_REGION)
     for axis, metric, name in (("axis1", "cooccur_days_per_unit", "CCE_trend_per_decade"),
                                ("axis2", "count_ratio_a", "Ratio_trend_per_decade"),
@@ -5105,16 +5107,25 @@ def tableS01(D, FIG):
     tab["_o"] = tab["Region"].map({r: i for i, r in enumerate(REGIONS)})
     tab = tab.sort_values(["_o", "Country"]).drop(columns="_o")
     FIG.mkdir(parents=True, exist_ok=True); tab.round(4).to_csv(FIG / "tableS01_country_statistics.csv", index=False)
-    show = tab[["Country", "Region", "N_PSU", "CCE_days_per_PSU", "CCE_trend_per_decade", "EPE_ratio", "Ratio_trend_per_decade",
-                "Pct_HW_drought", "Drought_trend_per_decade"]].copy()
+    show = tab[["Country", "Region", "N_PSU", "CCE_days_per_PSU_yr", "CCE_trend_per_decade", "EPE_ratio",
+                "Ratio_trend_per_decade", "Pct_HW_drought", "Drought_trend_per_decade"]].copy()
     for c in show.columns[3:]:
         show[c] = show[c].map(lambda v: f"{v:.3g}" if pd.notna(v) else "NA")
+    for c in ("CCE_trend_per_decade", "Ratio_trend_per_decade", "Drought_trend_per_decade"):
+        sig = tab[c + "_FDRsig"].fillna(False).astype(bool).to_numpy()
+        show[c] = [v + "*" if f else v for v, f in zip(show[c], sig)]
     fig, ax = plt.subplots(figsize=(14, 11), facecolor="white"); ax.axis("off")
     tb = ax.table(cellText=show.to_numpy().tolist(), colLabels=list(show.columns), cellLoc="center", loc="center")
     tb.auto_set_font_size(False); tb.set_fontsize(6); tb.scale(1, 1.3)
     for j in range(len(show.columns)):
         tb[0, j].set_facecolor("#4a4a4a"); tb[0, j].set_text_props(color="white", fontweight="bold")
     fig.suptitle("Table S1 — Country-level compound climate event statistics", fontsize=10, fontweight="bold")
+    fig.text(0.5, 0.06,
+             f"CCE_days_per_PSU_yr: HW–EPE co-occurrence days per PSU per year ({YEARS[0]}–{YEARS[-1]} mean; same unit as its trend). "
+             "EPE_ratio: Σ EPE after / Σ EPE before HW (unique attribution, W = ±30 d). Pct_HW_drought: pooled share of HW with "
+             "SPEI-3 < −1 at m−1;\nits trend uses the per-PSU mean (pct_drought_b). Trends: Theil–Sen per decade; * = Mann–Kendall "
+             "(Hamed–Rao) significant after Benjamini–Hochberg FDR across countries. A slope of 0 can result from a series with "
+             "mostly zero years (Theil–Sen median of pairwise slopes).", ha="center", va="bottom", fontsize=6, color="#444")
     savefig(fig, FIG, "tableS01_country_statistics")
     return tab
 
