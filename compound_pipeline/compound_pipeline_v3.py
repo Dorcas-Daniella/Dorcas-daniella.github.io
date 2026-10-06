@@ -4762,7 +4762,7 @@ def fig06_regimes(D, FIG, q, tag, min_support=None):
     panel_label(ax, "f", x=-0.05)
     prov = "  [PROVISIONAL minimum supports — test only]" if min_support is not None else ""
     fig.suptitle(f"Compound-event regimes — prominent = strictly above the order statistic "
-                 f"x(⌈{q:.2f}·n⌉) of the classifiable PSU, {YEARS[0]}–{YEARS[-1]} (pooled thresholds "
+                 f"$x_{{(\\lceil {q:.2f}\\,n \\rceil)}}$ of the classifiable PSU, {YEARS[0]}–{YEARS[-1]} (pooled thresholds "
                  f"applied to every decade); min. support Axis II = {min2}, Axis III = {min3}{prov}",
                  fontsize=10, fontweight="bold", y=.995)
     savefig(fig, FIG, f"fig06_regimes{tag}")

@@ -145,3 +145,4 @@ Ensuite :
 | Barre de couleur Axe II | `extend="max"` au lieu de `"both"` : un ratio ne peut pas être négatif. | e2e | Appliquée |
 | Libellé Fig 3 | « (per decade) » → « , by decade » : valeur de la décennie, et non pente par décennie. | e2e | Appliquée |
 | Avertissements cartopy | `edgecolor=` au lieu de `color=` pour les côtes et frontières : supprime les avertissements « facecolor will have no effect ». | e2e : aucun avertissement de ce type | Appliquée |
+| Titre de la Fig 6 | Les crochets ⌈ ⌉ de x₍⌈qn⌉₎ n'existent pas dans la police des figures (carrés vides). Remplacés par l'écriture mathématique de matplotlib (`\lceil`, `\rceil`). | Rendu contrôlé | Appliquée |
