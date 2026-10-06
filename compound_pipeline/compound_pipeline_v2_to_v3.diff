@@ -2267,7 +2267,7 @@
      rd = agg(D, "axis3_by_region_decade"); rd["decade"] = rd["decade"].astype(str)
      fig = plt.figure(figsize=(14, 5), facecolor="white")
      gs = GridSpec(1, 3, figure=fig, wspace=0.35)
-@@ -3679,78 +4534,217 @@
+@@ -3679,78 +4534,227 @@
      return "None prominent"
  
  
@@ -2420,6 +2420,7 @@
 -                           for d in DECADES})
 -    trans = pd.crosstab(by_dec[FIRST_DEC].set_index("psu_idx")["regime"],
 -                        by_dec[LAST_DEC].set_index("psu_idx")["regime"]).reindex(
+-        index=REGIME_ORDER, columns=REGIME_ORDER).fillna(0).astype(int)
 +def fig06_regimes(D, FIG, q, tag, min_support=None):
 +    """Fig 6. With cfg.regime_min_support_axis2/3 = None: support diagnostics
 +    ONLY (fix the minimums from them before looking at thresholds/classes).
@@ -2443,7 +2444,10 @@
 +                    "(%s). Set cfg.regime_min_support_axis2/3, then rerun.",
 +                    FIG / "fig06_support_diagnostics.csv")
 +        return None
-+
+ 
+-    fig = plt.figure(figsize=(15, 12), facecolor="white")
+-    gs = GridSpec(2, 3, figure=fig, width_ratios=[1, 1.2, 1.2], hspace=0.25, wspace=0.2)
+-    # (a) shares, pooled
 +    full = inputs["full"]
 +    ok_full = regime_classifiable(full, min2, min3)
 +    thr = {a: order_stat_threshold(full.loc[ok_full, c], q) for a, c in FIG6_COLS.items()}
@@ -2471,14 +2475,22 @@
 +                           for p in periods})
 +    n_cls = {p: int(by[p]["classifiable"].sum()) for p in periods}
 +    pct_insuf = {p: 100 * (1 - by[p]["classifiable"].mean()) for p in periods}
++    pct_inel = {p: 100 * (1 - by[p]["fig6_eligible"].mean()) for p in periods}
 +    f_, l_ = by[FIRST_DEC].set_index("psu_idx"), by[LAST_DEC].set_index("psu_idx")
 +    both = f_.index[f_["classifiable"]].intersection(l_.index[l_["classifiable"]])
 +    trans = pd.crosstab(f_.loc[both, "regime"], l_.loc[both, "regime"]).reindex(
-         index=REGIME_ORDER, columns=REGIME_ORDER).fillna(0).astype(int)
- 
-     fig = plt.figure(figsize=(15, 12), facecolor="white")
-     gs = GridSpec(2, 3, figure=fig, width_ratios=[1, 1.2, 1.2], hspace=0.25, wspace=0.2)
--    # (a) shares, pooled
++        index=REGIME_ORDER, columns=REGIME_ORDER).fillna(0).astype(int)
++    # persistence: same regime in both decades, vs. expected if the two decades were
++    # independent with the same marginal shares (sum_i r_i * c_i)
++    _T = trans.to_numpy(float); _N = max(1.0, _T.sum())
++    same_pct = 100 * np.trace(_T) / _N
++    chance_pct = 100 * float((_T.sum(1) / _N) @ (_T.sum(0) / _N))
++    log.info("Fig 6%s: %d PSU classifiable in %s and %s; same regime %.1f%% (%.1f%% expected "
++             "by chance)", tag, len(both), FIRST_DEC, LAST_DEC, same_pct, chance_pct)
++
++    fig = plt.figure(figsize=(15, 12.5), facecolor="white")
++    gs = GridSpec(2, 3, figure=fig, width_ratios=[1, 1, 1], hspace=0.34, wspace=0.3,
++                  top=0.86, bottom=0.08, left=0.13, right=0.90)
 +    # (a) counts and shares, pooled (shares among classifiable PSU)
      ax = fig.add_subplot(gs[0, 0])
 -    counts = pooled["regime"].value_counts().reindex(REGIME_ORDER).fillna(0)
@@ -2495,7 +2507,8 @@
 -    ax.set_xlim(0, counts.max() * 1.2); ax.set_title(f"Regimes, {YEARS[0]}–{YEARS[-1]}", fontsize=9, fontweight="bold")
 +    ax.set_xlim(0, max(1, cnt.max()) * 1.2)
 +    ax.set_title(f"Regimes, {YEARS[0]}–{YEARS[-1]}\n(n = {n_cls['full']:,} classifiable; "
-+                 f"{pct_insuf['full']:.1f}% insufficient data)", fontsize=9, fontweight="bold")
++                 f"{pct_insuf['full']:.1f}% insufficient data,\nincl. {pct_inel['full']:.1f}% "
++                 f"ineligible PSU)", fontsize=9, fontweight="bold")
      panel_label(ax, "a", x=-0.55)
      # (b) pooled map
      ax = map_ax(fig, gs[0, 1]); _regime_map(ax, pooled, f"Regimes, {YEARS[0]}–{YEARS[-1]}"); panel_label(ax, "b", x=0)
@@ -2527,23 +2540,27 @@
      ax = fig.add_subplot(gs[1, 2])
      P = trans.to_numpy(float); P = 100 * P / max(1, P.sum())
      im = ax.imshow(P, cmap="Blues", vmin=0, vmax=max(1, P.max()))
-@@ -3763,16 +4757,20 @@
+@@ -3763,16 +4767,26 @@
              if P[i, j] >= 0.5:
                  ax.text(j, i, f"{P[i, j]:.1f}", ha="center", va="center", fontsize=6,
                          color="white" if P[i, j] > .6 * P.max() else "#333")
 -    ax.set_title("Regime transitions, % of PSU (first → last decade)", fontsize=9, fontweight="bold")
-+    ax.set_title(f"Regime transitions, % of PSU classifiable in both decades (n = {len(both):,})",
-+                 fontsize=9, fontweight="bold")
-     panel_label(ax, "f", x=-0.05)
+-    panel_label(ax, "f", x=-0.05)
 -    ref_txt = ("thresholds from the full-period distribution" if cfg.regime_threshold_reference == "pooled"
 -               else "thresholds recomputed within each decade")
 -    fig.suptitle(f"Compound-event regimes — prominent = above the {q:.0%} quantile of the continental "
 -                 f"distribution of each axis ({ref_txt})", fontsize=10, fontweight="bold", y=.995)
++    for i in range(P.shape[0]):                       # outline the diagonal (same regime)
++        ax.add_patch(mpatches.Rectangle((i - .5, i - .5), 1, 1, fill=False, ec="#333", lw=.6))
++    ax.set_title(f"Transitions {FIRST_DEC.replace('-', '–')} → {LAST_DEC.replace('-', '–')}, "
++                 f"% of n = {len(both):,} PSU\nclassifiable in both decades; same regime "
++                 f"{same_pct:.1f}% (chance {chance_pct:.1f}%)", fontsize=9, fontweight="bold")
++    panel_label(ax, "f", x=-0.08, y=1.12)
 +    prov = "  [PROVISIONAL minimum supports — test only]" if min_support is not None else ""
 +    fig.suptitle(f"Compound-event regimes — prominent = strictly above the order statistic "
-+                 f"$x_{{(\\lceil {q:.2f}\\,n \\rceil)}}$ of the classifiable PSU, {YEARS[0]}–{YEARS[-1]} (pooled thresholds "
-+                 f"applied to every decade); min. support Axis II = {min2}, Axis III = {min3}{prov}",
-+                 fontsize=10, fontweight="bold", y=.995)
++                 f"$x_{{(\\lceil {q:.2f}\\,n \\rceil)}}$ of the classifiable PSU, {YEARS[0]}–{YEARS[-1]}\n"
++                 f"pooled thresholds applied to every decade · minimum support: Axis II = {min2} EPE, "
++                 f"Axis III = {min3} HW{prov}", fontsize=10, fontweight="bold", y=.975)
      savefig(fig, FIG, f"fig06_regimes{tag}")
      shares.round(2).to_csv(FIG / f"fig06_regime_shares_by_decade{tag}.csv")
 +    counts.T.assign(n_classifiable=pd.Series(n_cls),
@@ -2551,10 +2568,13 @@
 +        FIG / f"fig06_regime_counts_by_period{tag}.csv")
      trans.to_csv(FIG / f"fig06_regime_transitions{tag}.csv")
 -    pd.Series(thr).rename("threshold").to_csv(FIG / f"fig06_regime_thresholds{tag}.csv")
++    pd.DataFrame([dict(n_both=len(both), same_regime_pct=same_pct, chance_pct=chance_pct,
++                       pct_insufficient_full=pct_insuf["full"], pct_ineligible_full=pct_inel["full"])]
++                 ).round(2).to_csv(FIG / f"fig06_transition_summary{tag}.csv", index=False)
      return shares
  
  
-@@ -3870,7 +4868,7 @@
+@@ -3870,7 +4884,7 @@
  def figS_geo_paired(D, FIG, axis, col_a, col_b, lab_a, lab_b, title, filename):
      t = agg(D, f"{axis}_by_year_country")
      n_units = PSU_GEO.groupby("country").size()               # all PSU of the country
@@ -2563,7 +2583,7 @@
          n_units = t.groupby("country")["n_units_eligible"].max()
      ser = {}
      for c, g in t.groupby("country"):
-@@ -3953,7 +4951,7 @@
+@@ -3953,7 +4967,7 @@
          return t.set_index("year").reindex(YEARS)
      fig = plt.figure(figsize=(15, 7), facecolor="white"); gs = GridSpec(2, 5, figure=fig, hspace=.4, wspace=.3)
      rows = [("a", a2c, a2r, "n_before", "n_after", "n_units_eligible", "#4575b4", "#d73027", "EPE before HW", "EPE after HW", "EPE / PSU / year"),
@@ -2572,7 +2592,7 @@
      for i, (lab, c, r, ca, cb, cn, cola, colb, la, lb, ylab) in enumerate(rows):
          data = {}
          for sc in SCALES:
-@@ -4036,12 +5034,15 @@
+@@ -4036,12 +5050,15 @@
              r = t[(t["region"] == sc) & (t["onset_month"] == j + 1)]
              if len(r):
                  R[i, j] = r["count_ratio"].iloc[0]; N[i, j] = r["n_before"].iloc[0] + r["n_after"].iloc[0]
@@ -2590,7 +2610,7 @@
      for i in range(len(SCALES)):
          for j in range(12):
              if not reliable[i, j] or not np.isfinite(R[i, j]):
-@@ -4056,14 +5057,16 @@
+@@ -4056,14 +5073,16 @@
      tv = [.125, .25, .5, 1, 2, 4, 8, 16]; cb.set_ticks(np.log2(tv)); cb.set_ticklabels([str(v) for v in tv]); cb.set_label("Ratio (log2 scale)")
      ax = fig.add_subplot(gs[0, 1]); frac = []; med = []
      for i in range(len(SCALES)):
@@ -2610,7 +2630,7 @@
      savefig(fig, FIG, "figS10_monthly_stratification")
  
  
-@@ -4120,8 +5123,9 @@
+@@ -4120,8 +5139,9 @@
      ax.errorbar(x, t["count_ratio_null_med"], yerr=[t["count_ratio_null_med"] - t["count_ratio_null_lo"],
                  t["count_ratio_null_hi"] - t["count_ratio_null_med"]], fmt="s", color="k", ms=4, capsize=4, lw=1,
                  label="null median & 95% envelope")
@@ -2622,7 +2642,7 @@
      ax.axhline(1, color="#888", lw=.5, ls="--"); ax.set_xticks(x); ax.set_xticklabels(SCALES)
      ax.set_ylabel("EPE after / before HW (unique attribution)")
      ax.set_title("PRIMARY metric vs. strict null (%s)" % mode_txt, fontsize=9, fontweight="bold")
-@@ -4134,8 +5138,6 @@
+@@ -4134,8 +5154,6 @@
                  fmt="none", ecolor="k", capsize=3, lw=1)
      ax.errorbar(x + .18, (t["trigger_null_lo"] + t["trigger_null_hi"]) / 2, yerr=(t["trigger_null_hi"] - t["trigger_null_lo"]) / 2,
                  fmt="none", ecolor="k", capsize=3, lw=1, label="null 95% envelope")
@@ -2631,7 +2651,7 @@
      ax.set_xticks(x); ax.set_xticklabels(SCALES); ax.set_ylabel(f"Share of HW with ≥1 EPE within {cfg.axis2_window_days} d")
      ax.set_title("Secondary metric: ECA fractions vs. null", fontsize=9, fontweight="bold")
      ax.legend(fontsize=6, loc="upper center", bbox_to_anchor=(.5, -.12), ncol=3); panel_label(ax, "b")
-@@ -4157,11 +5159,14 @@
+@@ -4157,11 +5175,14 @@
      ax.set_xlabel("EPE after / before HW"); ax.set_ylabel("Count"); ax.set_title("Null distribution, Continental", fontsize=9, fontweight="bold")
      ax.legend(fontsize=6); panel_label(ax, "d")
      savefig(fig, FIG, "figS_axis2_null_test")
@@ -2647,7 +2667,7 @@
      a3 = a3.merge(PSU_GEO[["psu_idx", "region"]], on="psu_idx", how="left"); a3["year"] = pd.to_datetime(a3["start_date"]).dt.year
      sname = f"spei{cfg.spei_scale_months}"; pname = f"spi{cfg.spei_scale_months}"
      Ws = sorted(ws["window_days"].unique()); thr = list(cfg.spei_threshold_sens)
-@@ -4221,7 +5226,8 @@
+@@ -4221,7 +5242,8 @@
          rows.append(dict(threshold=t, pct_hw=100 * (s[sname] < t).mean(),
                           duration_ratio=s.loc[s[sname] < t, "duration"].mean() / s.loc[~(s[sname] < t), "duration"].mean(),
                           trend_pct_per_decade=ts[0] * 10 if ts else np.nan,
@@ -2657,7 +2677,7 @@
      pd.DataFrame(rows).round(4).to_csv(FIG / "figS_sensitivity_spei_threshold_table.csv", index=False)
      ws.round(4).to_csv(FIG / "figS_sensitivity_window_table.csv", index=False)
  
-@@ -4271,7 +5277,8 @@
+@@ -4271,7 +5293,8 @@
  
  def fig_drought_baseline(FIG):
      spei = pd.read_parquet(PROCESSED / "spei3.parquet"); col = f"spei{cfg.spei_scale_months}"
@@ -2667,7 +2687,7 @@
      d = d.merge(PSU_GEO, on="psu_idx", how="left")
      fig = plt.figure(figsize=(8, 8), facecolor="white"); gs = GridSpec(2, 1, figure=fig, height_ratios=[1, .04], hspace=.05)
      ax = map_ax(fig, gs[0]); sc = map_scatter(ax, d, "pct_months_drought", cmap="YlOrBr", norm=mcolors.Normalize(0, 40), s=1.2)
-@@ -4285,3 +5292,12 @@
+@@ -4285,3 +5308,12 @@
  if len(MODE_DIRS) > 1:
      fig_mode_comparison(_ROOT_FIG)
  

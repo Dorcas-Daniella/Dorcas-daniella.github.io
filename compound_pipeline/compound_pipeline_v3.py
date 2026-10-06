@@ -4704,13 +4704,22 @@ def fig06_regimes(D, FIG, q, tag, min_support=None):
                            for p in periods})
     n_cls = {p: int(by[p]["classifiable"].sum()) for p in periods}
     pct_insuf = {p: 100 * (1 - by[p]["classifiable"].mean()) for p in periods}
+    pct_inel = {p: 100 * (1 - by[p]["fig6_eligible"].mean()) for p in periods}
     f_, l_ = by[FIRST_DEC].set_index("psu_idx"), by[LAST_DEC].set_index("psu_idx")
     both = f_.index[f_["classifiable"]].intersection(l_.index[l_["classifiable"]])
     trans = pd.crosstab(f_.loc[both, "regime"], l_.loc[both, "regime"]).reindex(
         index=REGIME_ORDER, columns=REGIME_ORDER).fillna(0).astype(int)
+    # persistence: same regime in both decades, vs. expected if the two decades were
+    # independent with the same marginal shares (sum_i r_i * c_i)
+    _T = trans.to_numpy(float); _N = max(1.0, _T.sum())
+    same_pct = 100 * np.trace(_T) / _N
+    chance_pct = 100 * float((_T.sum(1) / _N) @ (_T.sum(0) / _N))
+    log.info("Fig 6%s: %d PSU classifiable in %s and %s; same regime %.1f%% (%.1f%% expected "
+             "by chance)", tag, len(both), FIRST_DEC, LAST_DEC, same_pct, chance_pct)
 
-    fig = plt.figure(figsize=(15, 12), facecolor="white")
-    gs = GridSpec(2, 3, figure=fig, width_ratios=[1, 1.2, 1.2], hspace=0.25, wspace=0.2)
+    fig = plt.figure(figsize=(15, 12.5), facecolor="white")
+    gs = GridSpec(2, 3, figure=fig, width_ratios=[1, 1, 1], hspace=0.34, wspace=0.3,
+                  top=0.86, bottom=0.08, left=0.13, right=0.90)
     # (a) counts and shares, pooled (shares among classifiable PSU)
     ax = fig.add_subplot(gs[0, 0])
     cnt = counts["full"].reindex(REGIME_ORDER)
@@ -4722,7 +4731,8 @@ def fig06_regimes(D, FIG, q, tag, min_support=None):
     ax.set_yticks(y); ax.set_yticklabels(REGIME_ORDER, fontsize=7); ax.set_xlabel("Number of PSU")
     ax.set_xlim(0, max(1, cnt.max()) * 1.2)
     ax.set_title(f"Regimes, {YEARS[0]}–{YEARS[-1]}\n(n = {n_cls['full']:,} classifiable; "
-                 f"{pct_insuf['full']:.1f}% insufficient data)", fontsize=9, fontweight="bold")
+                 f"{pct_insuf['full']:.1f}% insufficient data,\nincl. {pct_inel['full']:.1f}% "
+                 f"ineligible PSU)", fontsize=9, fontweight="bold")
     panel_label(ax, "a", x=-0.55)
     # (b) pooled map
     ax = map_ax(fig, gs[0, 1]); _regime_map(ax, pooled, f"Regimes, {YEARS[0]}–{YEARS[-1]}"); panel_label(ax, "b", x=0)
@@ -4757,20 +4767,26 @@ def fig06_regimes(D, FIG, q, tag, min_support=None):
             if P[i, j] >= 0.5:
                 ax.text(j, i, f"{P[i, j]:.1f}", ha="center", va="center", fontsize=6,
                         color="white" if P[i, j] > .6 * P.max() else "#333")
-    ax.set_title(f"Regime transitions, % of PSU classifiable in both decades (n = {len(both):,})",
-                 fontsize=9, fontweight="bold")
-    panel_label(ax, "f", x=-0.05)
+    for i in range(P.shape[0]):                       # outline the diagonal (same regime)
+        ax.add_patch(mpatches.Rectangle((i - .5, i - .5), 1, 1, fill=False, ec="#333", lw=.6))
+    ax.set_title(f"Transitions {FIRST_DEC.replace('-', '–')} → {LAST_DEC.replace('-', '–')}, "
+                 f"% of n = {len(both):,} PSU\nclassifiable in both decades; same regime "
+                 f"{same_pct:.1f}% (chance {chance_pct:.1f}%)", fontsize=9, fontweight="bold")
+    panel_label(ax, "f", x=-0.08, y=1.12)
     prov = "  [PROVISIONAL minimum supports — test only]" if min_support is not None else ""
     fig.suptitle(f"Compound-event regimes — prominent = strictly above the order statistic "
-                 f"$x_{{(\\lceil {q:.2f}\\,n \\rceil)}}$ of the classifiable PSU, {YEARS[0]}–{YEARS[-1]} (pooled thresholds "
-                 f"applied to every decade); min. support Axis II = {min2}, Axis III = {min3}{prov}",
-                 fontsize=10, fontweight="bold", y=.995)
+                 f"$x_{{(\\lceil {q:.2f}\\,n \\rceil)}}$ of the classifiable PSU, {YEARS[0]}–{YEARS[-1]}\n"
+                 f"pooled thresholds applied to every decade · minimum support: Axis II = {min2} EPE, "
+                 f"Axis III = {min3} HW{prov}", fontsize=10, fontweight="bold", y=.975)
     savefig(fig, FIG, f"fig06_regimes{tag}")
     shares.round(2).to_csv(FIG / f"fig06_regime_shares_by_decade{tag}.csv")
     counts.T.assign(n_classifiable=pd.Series(n_cls),
                     pct_insufficient=pd.Series(pct_insuf)).round(2).to_csv(
         FIG / f"fig06_regime_counts_by_period{tag}.csv")
     trans.to_csv(FIG / f"fig06_regime_transitions{tag}.csv")
+    pd.DataFrame([dict(n_both=len(both), same_regime_pct=same_pct, chance_pct=chance_pct,
+                       pct_insufficient_full=pct_insuf["full"], pct_ineligible_full=pct_inel["full"])]
+                 ).round(2).to_csv(FIG / f"fig06_transition_summary{tag}.csv", index=False)
     return shares
 
 
