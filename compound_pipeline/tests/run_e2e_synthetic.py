@@ -152,6 +152,9 @@ for m, D in MODE_DIRS.items():
     check(f"[{m}] Fig 6 thresholds finite, insufficient share reported",
           np.isfinite(dg.threshold_pooled).all() and dg.share_insufficient.notna().all())
 
+for m in MODE_DIRS:
+    check(f"[{m}] SI figure Axis III lag/index written", (g["FIG_DIRS"][m] / "figS_axis3_lag_index.png").exists())
+
 # ---- Axis III local-baseline diagnostic ---------------------------------------
 eb = pd.read_csv(PROCESSED / "figures_shared" / "axis3_expected_baseline.csv")
 for m, D in MODE_DIRS.items():

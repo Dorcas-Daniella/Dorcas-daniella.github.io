@@ -4382,8 +4382,45 @@ def fig02_trends(D, FIG):
     savefig(fig, FIG, "fig02_temporal_trends")
 
 
+# Axis III variants: primary SPEI-3 at lag 1, SPEI-3 at lag 0 (onset month; includes
+# the heatwave's own PET) and SPI-3 at lag 1 (precipitation only).
+AXIS3_VARIANTS = [("pct_drought_b", "SPEI-3, lag 1 (primary)", "#2c3e50", "-"),
+                  ("pct_drought_lag0_b", "SPEI-3, lag 0", "#8e7cc3", "--"),
+                  ("pct_drought_spi_b", "SPI-3, lag 1", "#1b9e77", "-")]
+
+
+def figS_axis3_lag_index(D, FIG):
+    """SI figure: annual % of HW with drought for the three Axis-III variants,
+    per scale, with the Theil–Sen slope per decade of each (step-14 trends)."""
+    tr = trends(D)
+    fig, axs = plt.subplots(1, len(SCALES), figsize=(16, 3.8), facecolor="white", sharey=True)
+    for j, sc in enumerate(SCALES):
+        ax = axs[j]; lines = []
+        for k, (metric, lab, col, ls) in enumerate(AXIS3_VARIANTS):
+            y = series_by_scale(D, "axis3", metric)[sc]; m = np.isfinite(y)
+            ax.scatter(YEARS[m], y[m], s=4, color=col, alpha=.35, edgecolors="none", zorder=3)
+            ax.plot(YEARS, smooth(y), color=col, lw=1.4, ls=ls, zorder=4, label=lab)
+            txt = slope_text(tr, "axis3", "continental" if sc == "Continental" else "region", sc,
+                             metric, "{:+.2f}").replace("\n", " ")
+            lines.append((txt or "n/a", col))
+        for k, (txt, col) in enumerate(lines):
+            ax.text(.03, .97 - k * .075, txt, transform=ax.transAxes, fontsize=5.5, color=col,
+                    ha="left", va="top")
+        ax.set_title(sc, fontsize=9, fontweight="bold", color=REGION_COLORS[sc])
+        ax.set_xlim(YEARS[0] - 1, YEARS[-1] + 1); ax.yaxis.grid(True, lw=.2, color="#ddd", zorder=0)
+        if j == 0:
+            ax.set_ylabel(f"% of HW with antecedent drought (index < {cfg.drought_threshold})", fontsize=7)
+    axs[-1].legend(fontsize=6, loc="lower right", frameon=False)
+    fig.text(.01, -.03, "Per-PSU mean of the % of HW with drought (pct_*_b). Slopes: Theil–Sen per decade, "
+             "95% moving-block-bootstrap CI; * = Mann–Kendall (Hamed–Rao) p < 0.05. Lag 0 uses the onset month, "
+             "whose SPEI includes the heatwave's own PET; SPI is precipitation-only.",
+             fontsize=6, color="#888", style="italic")
+    savefig(fig, FIG, "figS_axis3_lag_index")
+
+
 for _mode, _D in MODE_DIRS.items():
     fig02_trends(_D, FIG_DIRS[_mode])
+    figS_axis3_lag_index(_D, FIG_DIRS[_mode])
 
 
 # %%
