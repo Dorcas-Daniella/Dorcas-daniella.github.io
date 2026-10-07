@@ -5296,10 +5296,12 @@ def fig_mode_comparison(FIG):
                                  mk_p=r["mk_p"] if r is not None else np.nan))
         for i in range(2):
             axes[i, j].set_xticks(x + (len(modes) - 1) * w / 2); axes[i, j].set_xticklabels(SCALES, rotation=30, ha="right")
-        axes[0, j].set_title(f"{AXIS_NAMES[axis]}\n{lab}", fontsize=8, fontweight="bold"); axes[0, j].set_ylabel("Mean over years")
+        axes[0, j].set_title(f"{AXIS_NAMES[axis]}\n{lab}", fontsize=8, fontweight="bold"); axes[0, j].set_ylabel("Mean of annual values")
         axes[1, j].set_ylabel("Theil–Sen slope / decade (95% CI)"); axes[1, j].axhline(0, color="grey", lw=.5)
     # HW counts by mode
-    txt = " | ".join(f"{m}: {len(pd.read_parquet(MODE_DIRS[m] / 'heatwaves.parquet', columns=['psu_idx'])):,} HW" for m in modes)
+    txt = ("HW detected on all PSU — " + " | ".join(
+        f"{m}: {len(pd.read_parquet(MODE_DIRS[m] / 'heatwaves.parquet', columns=['psu_idx'])):,}" for m in modes)
+        + " (top row: mean of annual values, not the pooled ratio)")
     axes[0, 0].legend(fontsize=7); fig.suptitle("Calendar vs annual Tmax threshold — headline metrics\n" + txt, fontsize=10, fontweight="bold")
     fig.tight_layout(); savefig(fig, FIG, "figS_threshold_mode_comparison")
     pd.DataFrame(rows).round(4).to_csv(FIG / "figS_threshold_mode_comparison_table.csv", index=False)
