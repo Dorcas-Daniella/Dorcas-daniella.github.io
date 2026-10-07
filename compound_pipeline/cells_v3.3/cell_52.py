@@ -104,12 +104,12 @@ def fig_sensitivity(D, FIG):
     ax = fig.add_subplot(gs[0, 3:6]); c = ws[ws["scale"] == "Continental"].set_index("window_days").reindex(Ws)
     ax.plot(Ws, c["count_ratio"], "o-", color="#2c3e50", lw=1.8, ms=6, label="count ratio (primary)")
     for W, r in zip(Ws, c["count_ratio"]):
-        ax.annotate(f"{r:.2f}", (W, r), xytext=(0, 8), textcoords="offset points", ha="center", fontsize=7, color="#2c3e50")
+        ax.annotate(f"{r:.2f}", (W, r), xytext=(0, -14), textcoords="offset points", ha="center", fontsize=7, color="#2c3e50")
     ax2 = ax.twinx(); ax2.plot(Ws, c["rate_diff"], "s--", color="#d73027", lw=1.2, ms=5, label="trigger − precursor (secondary)")
     ax2.set_ylabel("Trigger − precursor fraction", color="#d73027"); ax2.spines["right"].set_visible(True)
     ax.axvline(cfg.axis2_window_days, color="#e74c3c", ls=":", lw=.8); ax.axhline(1, color="grey", ls="--", lw=.5)
     ax.set_xticks(Ws); ax.set_xticklabels([f"±{W}" for W in Ws]); ax.set_xlabel("Window W (days)"); ax.set_ylabel("EPE after / before HW")
-    h1, l1 = ax.get_legend_handles_labels(); h2, l2 = ax2.get_legend_handles_labels(); ax.legend(h1 + h2, l1 + l2, fontsize=7, loc="upper left")
+    h1, l1 = ax.get_legend_handles_labels(); h2, l2 = ax2.get_legend_handles_labels(); ax.legend(h1 + h2, l1 + l2, fontsize=7, loc="upper right", frameon=False)
     ax.set_title("Continental Axis II metrics by window size", fontsize=9, fontweight="bold"); panel_label(ax, "b", x=-0.07)
     # (c) SPEI threshold: % HW preconditioned and duration ratio (primary lag)
     s = a3[a3["has_spei"]]
