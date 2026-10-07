@@ -4427,9 +4427,11 @@ def fig04_asymmetry(D, FIG):
         s = att.loc[att["decade"] == dec, "offset_days"]
         if len(s):
             cnt, edges = np.histogram(s, bins=bins, density=True)
-            ax.plot((edges[:-1] + edges[1:]) / 2, cnt, color=DECADE_COLORS[dec], lw=1.2, label=dec.replace("-", "–"))
+            ctr = (edges[:-1] + edges[1:]) / 2
+            cnt[ctr == 0] = np.nan        # day 0 = inside the HW (Axis I), not a possible offset: break the line
+            ax.plot(ctr, cnt, color=DECADE_COLORS[dec], lw=1.2, label=dec.replace("-", "–"))
     ax.axvline(0, color="#888", lw=.5)
-    ax.set_xlabel("Days from nearest heatwave boundary"); ax.set_ylabel("Density")
+    ax.set_xlabel("Days from nearest heatwave boundary (− before onset, + after end)"); ax.set_ylabel("Density")
     ax.set_title("EPE timing relative to HW, by decade", fontsize=9, fontweight="bold")
     ax.legend(fontsize=6); panel_label(ax, "b")
     # (c) count ratio region x decade

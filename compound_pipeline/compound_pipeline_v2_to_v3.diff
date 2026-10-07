@@ -2258,7 +2258,21 @@
      att = att[~att["truncated"] & att["position"].isin(["before", "after"])].copy()
      att["decade"] = assign_decade(pd.to_datetime(att["start_date"]).dt.year, cfg.decade_bounds).astype(str)
      rd = agg(D, "axis2_by_region_decade"); rd["decade"] = rd["decade"].astype(str)
-@@ -3613,7 +4468,8 @@
+@@ -3572,9 +4427,11 @@
+         s = att.loc[att["decade"] == dec, "offset_days"]
+         if len(s):
+             cnt, edges = np.histogram(s, bins=bins, density=True)
+-            ax.plot((edges[:-1] + edges[1:]) / 2, cnt, color=DECADE_COLORS[dec], lw=1.2, label=dec.replace("-", "–"))
++            ctr = (edges[:-1] + edges[1:]) / 2
++            cnt[ctr == 0] = np.nan        # day 0 = inside the HW (Axis I), not a possible offset: break the line
++            ax.plot(ctr, cnt, color=DECADE_COLORS[dec], lw=1.2, label=dec.replace("-", "–"))
+     ax.axvline(0, color="#888", lw=.5)
+-    ax.set_xlabel("Days from nearest heatwave boundary"); ax.set_ylabel("Density")
++    ax.set_xlabel("Days from nearest heatwave boundary (− before onset, + after end)"); ax.set_ylabel("Density")
+     ax.set_title("EPE timing relative to HW, by decade", fontsize=9, fontweight="bold")
+     ax.legend(fontsize=6); panel_label(ax, "b")
+     # (c) count ratio region x decade
+@@ -3613,7 +4470,8 @@
  
  def fig05_drought(D, FIG):
      a3 = pd.read_parquet(D / "axis3.parquet").merge(PSU_GEO[["psu_idx", "region"]], on="psu_idx", how="left")
@@ -2268,7 +2282,7 @@
      rd = agg(D, "axis3_by_region_decade"); rd["decade"] = rd["decade"].astype(str)
      fig = plt.figure(figsize=(14, 5), facecolor="white")
      gs = GridSpec(1, 3, figure=fig, wspace=0.35)
-@@ -3679,78 +4535,227 @@
+@@ -3679,78 +4537,227 @@
      return "None prominent"
  
  
@@ -2541,7 +2555,7 @@
      ax = fig.add_subplot(gs[1, 2])
      P = trans.to_numpy(float); P = 100 * P / max(1, P.sum())
      im = ax.imshow(P, cmap="Blues", vmin=0, vmax=max(1, P.max()))
-@@ -3763,16 +4768,26 @@
+@@ -3763,16 +4770,26 @@
              if P[i, j] >= 0.5:
                  ax.text(j, i, f"{P[i, j]:.1f}", ha="center", va="center", fontsize=6,
                          color="white" if P[i, j] > .6 * P.max() else "#333")
@@ -2575,7 +2589,7 @@
      return shares
  
  
-@@ -3870,7 +4885,7 @@
+@@ -3870,7 +4887,7 @@
  def figS_geo_paired(D, FIG, axis, col_a, col_b, lab_a, lab_b, title, filename):
      t = agg(D, f"{axis}_by_year_country")
      n_units = PSU_GEO.groupby("country").size()               # all PSU of the country
@@ -2584,7 +2598,7 @@
          n_units = t.groupby("country")["n_units_eligible"].max()
      ser = {}
      for c, g in t.groupby("country"):
-@@ -3953,7 +4968,7 @@
+@@ -3953,7 +4970,7 @@
          return t.set_index("year").reindex(YEARS)
      fig = plt.figure(figsize=(15, 7), facecolor="white"); gs = GridSpec(2, 5, figure=fig, hspace=.4, wspace=.3)
      rows = [("a", a2c, a2r, "n_before", "n_after", "n_units_eligible", "#4575b4", "#d73027", "EPE before HW", "EPE after HW", "EPE / PSU / year"),
@@ -2593,7 +2607,7 @@
      for i, (lab, c, r, ca, cb, cn, cola, colb, la, lb, ylab) in enumerate(rows):
          data = {}
          for sc in SCALES:
-@@ -4036,12 +5051,15 @@
+@@ -4036,12 +5053,15 @@
              r = t[(t["region"] == sc) & (t["onset_month"] == j + 1)]
              if len(r):
                  R[i, j] = r["count_ratio"].iloc[0]; N[i, j] = r["n_before"].iloc[0] + r["n_after"].iloc[0]
@@ -2611,7 +2625,7 @@
      for i in range(len(SCALES)):
          for j in range(12):
              if not reliable[i, j] or not np.isfinite(R[i, j]):
-@@ -4056,14 +5074,16 @@
+@@ -4056,14 +5076,16 @@
      tv = [.125, .25, .5, 1, 2, 4, 8, 16]; cb.set_ticks(np.log2(tv)); cb.set_ticklabels([str(v) for v in tv]); cb.set_label("Ratio (log2 scale)")
      ax = fig.add_subplot(gs[0, 1]); frac = []; med = []
      for i in range(len(SCALES)):
@@ -2631,7 +2645,7 @@
      savefig(fig, FIG, "figS10_monthly_stratification")
  
  
-@@ -4074,6 +5094,8 @@
+@@ -4074,6 +5096,8 @@
      a3 = agg(D, "axis3_by_year_country").groupby("country")[["n_hw", "n_hw_spei", "n_hw_drought"]].sum()
      a3["Pct_HW_drought"] = 100 * a3["n_hw_drought"] / a3["n_hw_spei"].replace(0, np.nan)
      tab = (p1.join(p2).join(a3)).reset_index()
@@ -2640,7 +2654,7 @@
      tab["Region"] = tab["country"].map(COUNTRY_REGION)
      for axis, metric, name in (("axis1", "cooccur_days_per_unit", "CCE_trend_per_decade"),
                                 ("axis2", "count_ratio_a", "Ratio_trend_per_decade"),
-@@ -4085,16 +5107,25 @@
+@@ -4085,16 +5109,25 @@
      tab["_o"] = tab["Region"].map({r: i for i, r in enumerate(REGIONS)})
      tab = tab.sort_values(["_o", "Country"]).drop(columns="_o")
      FIG.mkdir(parents=True, exist_ok=True); tab.round(4).to_csv(FIG / "tableS01_country_statistics.csv", index=False)
@@ -2668,7 +2682,7 @@
      savefig(fig, FIG, "tableS01_country_statistics")
      return tab
  
-@@ -4120,8 +5151,9 @@
+@@ -4120,8 +5153,9 @@
      ax.errorbar(x, t["count_ratio_null_med"], yerr=[t["count_ratio_null_med"] - t["count_ratio_null_lo"],
                  t["count_ratio_null_hi"] - t["count_ratio_null_med"]], fmt="s", color="k", ms=4, capsize=4, lw=1,
                  label="null median & 95% envelope")
@@ -2680,7 +2694,7 @@
      ax.axhline(1, color="#888", lw=.5, ls="--"); ax.set_xticks(x); ax.set_xticklabels(SCALES)
      ax.set_ylabel("EPE after / before HW (unique attribution)")
      ax.set_title("PRIMARY metric vs. strict null (%s)" % mode_txt, fontsize=9, fontweight="bold")
-@@ -4134,8 +5166,6 @@
+@@ -4134,8 +5168,6 @@
                  fmt="none", ecolor="k", capsize=3, lw=1)
      ax.errorbar(x + .18, (t["trigger_null_lo"] + t["trigger_null_hi"]) / 2, yerr=(t["trigger_null_hi"] - t["trigger_null_lo"]) / 2,
                  fmt="none", ecolor="k", capsize=3, lw=1, label="null 95% envelope")
@@ -2689,7 +2703,7 @@
      ax.set_xticks(x); ax.set_xticklabels(SCALES); ax.set_ylabel(f"Share of HW with ≥1 EPE within {cfg.axis2_window_days} d")
      ax.set_title("Secondary metric: ECA fractions vs. null", fontsize=9, fontweight="bold")
      ax.legend(fontsize=6, loc="upper center", bbox_to_anchor=(.5, -.12), ncol=3); panel_label(ax, "b")
-@@ -4157,11 +5187,14 @@
+@@ -4157,11 +5189,14 @@
      ax.set_xlabel("EPE after / before HW"); ax.set_ylabel("Count"); ax.set_title("Null distribution, Continental", fontsize=9, fontweight="bold")
      ax.legend(fontsize=6); panel_label(ax, "d")
      savefig(fig, FIG, "figS_axis2_null_test")
@@ -2705,7 +2719,7 @@
      a3 = a3.merge(PSU_GEO[["psu_idx", "region"]], on="psu_idx", how="left"); a3["year"] = pd.to_datetime(a3["start_date"]).dt.year
      sname = f"spei{cfg.spei_scale_months}"; pname = f"spi{cfg.spei_scale_months}"
      Ws = sorted(ws["window_days"].unique()); thr = list(cfg.spei_threshold_sens)
-@@ -4221,7 +5254,8 @@
+@@ -4221,7 +5256,8 @@
          rows.append(dict(threshold=t, pct_hw=100 * (s[sname] < t).mean(),
                           duration_ratio=s.loc[s[sname] < t, "duration"].mean() / s.loc[~(s[sname] < t), "duration"].mean(),
                           trend_pct_per_decade=ts[0] * 10 if ts else np.nan,
@@ -2715,7 +2729,7 @@
      pd.DataFrame(rows).round(4).to_csv(FIG / "figS_sensitivity_spei_threshold_table.csv", index=False)
      ws.round(4).to_csv(FIG / "figS_sensitivity_window_table.csv", index=False)
  
-@@ -4271,7 +5305,8 @@
+@@ -4271,7 +5307,8 @@
  
  def fig_drought_baseline(FIG):
      spei = pd.read_parquet(PROCESSED / "spei3.parquet"); col = f"spei{cfg.spei_scale_months}"
@@ -2725,7 +2739,7 @@
      d = d.merge(PSU_GEO, on="psu_idx", how="left")
      fig = plt.figure(figsize=(8, 8), facecolor="white"); gs = GridSpec(2, 1, figure=fig, height_ratios=[1, .04], hspace=.05)
      ax = map_ax(fig, gs[0]); sc = map_scatter(ax, d, "pct_months_drought", cmap="YlOrBr", norm=mcolors.Normalize(0, 40), s=1.2)
-@@ -4285,3 +5320,12 @@
+@@ -4285,3 +5322,12 @@
  if len(MODE_DIRS) > 1:
      fig_mode_comparison(_ROOT_FIG)
  
