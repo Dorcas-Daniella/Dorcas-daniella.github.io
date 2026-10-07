@@ -2761,7 +2761,7 @@
      a3 = a3.merge(PSU_GEO[["psu_idx", "region"]], on="psu_idx", how="left"); a3["year"] = pd.to_datetime(a3["start_date"]).dt.year
      sname = f"spei{cfg.spei_scale_months}"; pname = f"spi{cfg.spei_scale_months}"
      Ws = sorted(ws["window_days"].unique()); thr = list(cfg.spei_threshold_sens)
-@@ -4221,7 +5293,8 @@
+@@ -4221,13 +5293,44 @@
          rows.append(dict(threshold=t, pct_hw=100 * (s[sname] < t).mean(),
                           duration_ratio=s.loc[s[sname] < t, "duration"].mean() / s.loc[~(s[sname] < t), "duration"].mean(),
                           trend_pct_per_decade=ts[0] * 10 if ts else np.nan,
@@ -2771,7 +2771,43 @@
      pd.DataFrame(rows).round(4).to_csv(FIG / "figS_sensitivity_spei_threshold_table.csv", index=False)
      ws.round(4).to_csv(FIG / "figS_sensitivity_window_table.csv", index=False)
  
-@@ -4260,10 +5333,12 @@
+ 
++AXIS2_BUFFERS = (0, 1, 2, 3, 5)
++
++
++def axis2_boundary_buffer(D, FIG):
++    """Axis II sensitivity to EPE close to the heatwave boundaries (rain that
++    terminates a heatwave falls on day +1): the after/before ratio recomputed
++    without the attributed EPE within g days of onset/end (|offset| <= g), same
++    eligible population and non-truncated heatwaves as the primary metric.
++    g = 0 reproduces the primary ratio. The null is not recomputed here."""
++    el = psu_eligibility(cfg, D)
++    a = pd.read_parquet(D / "axis2_attrib.parquet", columns=["psu_idx", "position", "offset_days", "truncated"])
++    a = a[a["psu_idx"].isin(el.loc[el["axis12_eligible"], "psu_idx"]) & ~a["truncated"]
++          & a["position"].isin(["before", "after"])]
++    off = a["offset_days"].abs()
++    rows = []
++    for gap in AXIS2_BUFFERS:
++        s = a[off > gap]
++        nb, na = int((s["position"] == "before").sum()), int((s["position"] == "after").sum())
++        rows.append(dict(buffer_days=gap, n_before=nb, n_after=na, count_ratio=na / nb if nb else np.nan))
++    out = pd.DataFrame(rows)
++    nA, nB = (a["position"] == "after").sum(), (a["position"] == "before").sum()
++    out["pct_after_on_day_plus1"] = 100 * ((a["position"] == "after") & (a["offset_days"] == 1)).sum() / max(nA, 1)
++    out["pct_before_on_day_minus1"] = 100 * ((a["position"] == "before") & (a["offset_days"] == -1)).sum() / max(nB, 1)
++    FIG.mkdir(parents=True, exist_ok=True); out.round(4).to_csv(FIG / "figS_axis2_boundary_buffer_table.csv", index=False)
++    log.info("Axis II boundary buffer (%s): %s", D.name,
++             ", ".join(f"±{r.buffer_days} d -> {r.count_ratio:.3f}" for r in out.itertuples()))
++    return out
++
++
+ for _mode, _D in MODE_DIRS.items():
+     fig_null(_D, FIG_DIRS[_mode]); fig_sensitivity(_D, FIG_DIRS[_mode])
++    axis2_boundary_buffer(_D, FIG_DIRS[_mode])
+ 
+ 
+ # %%
+@@ -4260,10 +5363,12 @@
                                   mk_p=r["mk_p"] if r is not None else np.nan))
          for i in range(2):
              axes[i, j].set_xticks(x + (len(modes) - 1) * w / 2); axes[i, j].set_xticklabels(SCALES, rotation=30, ha="right")
@@ -2786,7 +2822,7 @@
      axes[0, 0].legend(fontsize=7); fig.suptitle("Calendar vs annual Tmax threshold — headline metrics\n" + txt, fontsize=10, fontweight="bold")
      fig.tight_layout(); savefig(fig, FIG, "figS_threshold_mode_comparison")
      pd.DataFrame(rows).round(4).to_csv(FIG / "figS_threshold_mode_comparison_table.csv", index=False)
-@@ -4271,7 +5346,8 @@
+@@ -4271,7 +5376,8 @@
  
  def fig_drought_baseline(FIG):
      spei = pd.read_parquet(PROCESSED / "spei3.parquet"); col = f"spei{cfg.spei_scale_months}"
@@ -2796,7 +2832,7 @@
      d = d.merge(PSU_GEO, on="psu_idx", how="left")
      fig = plt.figure(figsize=(8, 8), facecolor="white"); gs = GridSpec(2, 1, figure=fig, height_ratios=[1, .04], hspace=.05)
      ax = map_ax(fig, gs[0]); sc = map_scatter(ax, d, "pct_months_drought", cmap="YlOrBr", norm=mcolors.Normalize(0, 40), s=1.2)
-@@ -4280,8 +5356,64 @@
+@@ -4280,8 +5386,64 @@
      savefig(fig, FIG, "figS_drought_baseline")
  
  

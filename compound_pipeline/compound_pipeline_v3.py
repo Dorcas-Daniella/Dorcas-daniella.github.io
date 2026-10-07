@@ -5299,8 +5299,38 @@ def fig_sensitivity(D, FIG):
     ws.round(4).to_csv(FIG / "figS_sensitivity_window_table.csv", index=False)
 
 
+AXIS2_BUFFERS = (0, 1, 2, 3, 5)
+
+
+def axis2_boundary_buffer(D, FIG):
+    """Axis II sensitivity to EPE close to the heatwave boundaries (rain that
+    terminates a heatwave falls on day +1): the after/before ratio recomputed
+    without the attributed EPE within g days of onset/end (|offset| <= g), same
+    eligible population and non-truncated heatwaves as the primary metric.
+    g = 0 reproduces the primary ratio. The null is not recomputed here."""
+    el = psu_eligibility(cfg, D)
+    a = pd.read_parquet(D / "axis2_attrib.parquet", columns=["psu_idx", "position", "offset_days", "truncated"])
+    a = a[a["psu_idx"].isin(el.loc[el["axis12_eligible"], "psu_idx"]) & ~a["truncated"]
+          & a["position"].isin(["before", "after"])]
+    off = a["offset_days"].abs()
+    rows = []
+    for gap in AXIS2_BUFFERS:
+        s = a[off > gap]
+        nb, na = int((s["position"] == "before").sum()), int((s["position"] == "after").sum())
+        rows.append(dict(buffer_days=gap, n_before=nb, n_after=na, count_ratio=na / nb if nb else np.nan))
+    out = pd.DataFrame(rows)
+    nA, nB = (a["position"] == "after").sum(), (a["position"] == "before").sum()
+    out["pct_after_on_day_plus1"] = 100 * ((a["position"] == "after") & (a["offset_days"] == 1)).sum() / max(nA, 1)
+    out["pct_before_on_day_minus1"] = 100 * ((a["position"] == "before") & (a["offset_days"] == -1)).sum() / max(nB, 1)
+    FIG.mkdir(parents=True, exist_ok=True); out.round(4).to_csv(FIG / "figS_axis2_boundary_buffer_table.csv", index=False)
+    log.info("Axis II boundary buffer (%s): %s", D.name,
+             ", ".join(f"±{r.buffer_days} d -> {r.count_ratio:.3f}" for r in out.itertuples()))
+    return out
+
+
 for _mode, _D in MODE_DIRS.items():
     fig_null(_D, FIG_DIRS[_mode]); fig_sensitivity(_D, FIG_DIRS[_mode])
+    axis2_boundary_buffer(_D, FIG_DIRS[_mode])
 
 
 # %%

@@ -155,6 +155,13 @@ for m, D in MODE_DIRS.items():
 for m in MODE_DIRS:
     check(f"[{m}] SI figure Axis III lag/index written", (g["FIG_DIRS"][m] / "figS_axis3_lag_index.png").exists())
 
+for m, D in MODE_DIRS.items():
+    bb = pd.read_csv(g["FIG_DIRS"][m] / "figS_axis2_boundary_buffer_table.csv")
+    a2 = pd.read_parquet(D / "aggregations" / "axis2_by_psu.parquet")
+    check(f"[{m}] boundary buffer 0 d == primary counts",
+          int(bb.loc[bb.buffer_days == 0, "n_before"].iloc[0]) == int(a2.n_before.sum())
+          and int(bb.loc[bb.buffer_days == 0, "n_after"].iloc[0]) == int(a2.n_after.sum()))
+
 # ---- Axis III local-baseline diagnostic ---------------------------------------
 eb = pd.read_csv(PROCESSED / "figures_shared" / "axis3_expected_baseline.csv")
 for m, D in MODE_DIRS.items():
