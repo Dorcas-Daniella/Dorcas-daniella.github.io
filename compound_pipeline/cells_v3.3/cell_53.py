@@ -96,9 +96,55 @@ def axis3_expected_baseline(FIG):
     return out
 
 
+def figS_axis3_expected_baseline(eb, FIG):
+    """SI figure from axis3_expected_baseline: (a) primary mode, observed % of HW
+    preceded by drought vs. its local expectation (same PSU and calendar month,
+    within the same decade), SPEI and SPI; (b) observed / expected ratio for the
+    two expectations, both indices, both threshold modes."""
+    sname, pname = f"spei{cfg.spei_scale_months}", f"spi{cfg.spei_scale_months}"
+    modes = [m for m in MODE_DIRS if m in set(eb["mode"])]
+    prim = "calendar" if "calendar" in modes else modes[0]
+    x = np.arange(len(SCALES))
+    fig, axs = plt.subplots(1, 2, figsize=(15, 5.2), facecolor="white", gridspec_kw=dict(wspace=.22))
+    ax = axs[0]
+    spec = [(sname, "observed_pct", "SPEI-3 observed", "#b35806", 1.0),
+            (sname, "exp_month_decade_pct", "SPEI-3 expected", "#b35806", .35),
+            (pname, "observed_pct", "SPI-3 observed", "#1b9e77", 1.0),
+            (pname, "exp_month_decade_pct", "SPI-3 expected", "#1b9e77", .35)]
+    w = .2
+    for k, (idx, col, lab, color, alpha) in enumerate(spec):
+        v = eb[(eb["mode"] == prim) & (eb["index"] == idx)].set_index("scale").reindex(SCALES)[col]
+        ax.bar(x - .3 + k * w, v, w * .95, color=color, alpha=alpha, label=lab)
+    ax.set_xticks(x); ax.set_xticklabels(SCALES); ax.set_ylabel(f"% of HW preceded by drought (index < {cfg.drought_threshold:g})")
+    ax.set_title(f"Observed vs. locally expected share ({prim} mode)\n"
+                 "expected = drought frequency of the same PSU, calendar month and decade",
+                 fontsize=9, fontweight="bold")
+    ax.legend(fontsize=6.5, ncol=2, frameon=False); panel_label(ax, "a", x=-0.1, y=1.08)
+    ax = axs[1]
+    combos = [(m, idx) for m in modes for idx in (sname, pname)]
+    w = .8 / len(combos)
+    colors = {sname: "#b35806", pname: "#1b9e77"}
+    for k, (m, idx) in enumerate(combos):
+        t = eb[(eb["mode"] == m) & (eb["index"] == idx)].set_index("scale").reindex(SCALES)
+        xx = x - .4 + w * (k + .5)
+        ax.bar(xx, t["ratio_month_decade"], w * .9, color=colors[idx], alpha=1.0 if m == prim else .45,
+               hatch=None if m == prim else "//", edgecolor="white", lw=.3,
+               label=f"{idx.upper()[:-1]}-3, {m}")
+        ax.scatter(xx, t["ratio_month"], s=10, color="k", zorder=4,
+                   label="expected from PSU-month only" if k == 0 else None)
+    ax.axhline(1, color="#888", lw=.6, ls="--"); ax.set_xticks(x); ax.set_xticklabels(SCALES)
+    ax.set_ylabel("Observed / expected"); ax.set_ylim(0, None)
+    ax.set_title("Observed / expected (> 1 = more often than locally expected)\n"
+                 "bars: same PSU, month and decade · dots: same PSU and month",
+                 fontsize=9, fontweight="bold")
+    ax.legend(fontsize=6, ncol=3, frameon=False, loc="upper center", bbox_to_anchor=(.5, -.08)); panel_label(ax, "b", x=-0.1, y=1.08)
+    savefig(fig, FIG, "figS_axis3_expected_baseline")
+
+
 _ROOT_FIG = PROCESSED / "figures_shared"
 fig_drought_baseline(_ROOT_FIG)
-axis3_expected_baseline(_ROOT_FIG)
+_eb = axis3_expected_baseline(_ROOT_FIG)
+figS_axis3_expected_baseline(_eb, _ROOT_FIG)
 if len(MODE_DIRS) > 1:
     fig_mode_comparison(_ROOT_FIG)
 

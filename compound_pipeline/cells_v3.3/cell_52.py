@@ -4,7 +4,8 @@ def fig_null(D, FIG):
     seasons = ["ALL"] + list(cfg.null_seasons)
     mode_txt = ("same PSU, other year, onset ±%d d" % cfg.null_window_days if cfg.null_mode == "psu_window"
                 else "regional onset-doy pool")
-    fig = plt.figure(figsize=(14, 9), facecolor="white"); gs = GridSpec(2, 2, figure=fig, hspace=.4, wspace=.3)
+    fig = plt.figure(figsize=(14, 13.5), facecolor="white")
+    gs = GridSpec(3, 2, figure=fig, hspace=.45, wspace=.3, height_ratios=[1, 1, .9])
     # (a) PRIMARY: count ratio obs vs null, by scale (ALL seasons)
     ax = fig.add_subplot(gs[0, 0]); t = nl[nl["season"] == "ALL"].set_index("scale").reindex(SCALES)
     x = np.arange(len(SCALES))
@@ -47,6 +48,37 @@ def fig_null(D, FIG):
     obs = t.loc["Continental", "count_ratio_obs"]; ax.axvline(obs, color="#d73027", lw=2, label=f"observed = {obs:.2f}")
     ax.set_xlabel("EPE after / before HW"); ax.set_ylabel("Count"); ax.set_title("Null distribution, Continental", fontsize=9, fontweight="bold")
     ax.legend(fontsize=6); panel_label(ax, "d")
+    # (e) decomposition: observed EPE before / after HW relative to the null median
+    #     (< 1 = deficit, > 1 = excess vs. the same season in other years); the black
+    #     bars are the null 95% envelope expressed relative to its own median
+    ax = fig.add_subplot(gs[2, :])
+    need = ["n_before_obs", "n_before_null_med", "n_before_null_lo", "n_before_null_hi",
+            "n_after_obs", "n_after_null_med", "n_after_null_lo", "n_after_null_hi"]
+    if all(c in t.columns for c in need):
+        for side, off, col, lab in (("before", -.18, "#4575b4", "EPE before HW"),
+                                    ("after", .18, "#d73027", "EPE after HW")):
+            med = t[f"n_{side}_null_med"].to_numpy(float)
+            r = t[f"n_{side}_obs"].to_numpy(float) / med
+            lo = t[f"n_{side}_null_lo"].to_numpy(float) / med
+            hi = t[f"n_{side}_null_hi"].to_numpy(float) / med
+            ax.bar(x + off, r, .34, color=col, alpha=.85, label=f"{lab}: observed / null median")
+            ax.errorbar(x + off, np.ones_like(r), yerr=[1 - lo, hi - 1], fmt="none", ecolor="k",
+                        capsize=3, lw=1)
+            for xi, v in zip(x + off, r):
+                if np.isfinite(v):         # value inside the bar, clear of the envelope at 1
+                    ax.text(xi, .04, f"{v:.2f}", ha="center", va="bottom", fontsize=7,
+                            color="white", fontweight="bold")
+        ax.errorbar([], [], yerr=[], fmt="none", ecolor="k", capsize=3, lw=1, label="null 95% envelope")
+        ax.axhline(1, color="#888", lw=.6, ls="--"); ax.set_xticks(x); ax.set_xticklabels(SCALES)
+        ax.set_ylabel("Observed / null median")
+        ax.set_ylim(0, max(1.25, np.nanmax(t[["n_after_obs"]].to_numpy(float) / t[["n_after_null_med"]].to_numpy(float)) * 1.15))
+        ax.legend(fontsize=6.5, loc="upper center", bbox_to_anchor=(.5, -.1), ncol=3)
+    else:
+        ax.text(.5, .5, "decomposition not available (null run before v3.2)", ha="center", va="center",
+                transform=ax.transAxes); ax.set_axis_off()
+    ax.set_title("Decomposition of the asymmetry: EPE before vs. after HW relative to the null "
+                 "(< 1 = deficit, > 1 = excess)", fontsize=9, fontweight="bold")
+    panel_label(ax, "e", x=-0.05)
     savefig(fig, FIG, "figS_axis2_null_test")
     nl.drop(columns=[c for c in nl.columns if c.startswith("p_")]).round(4).to_csv(
         FIG / "figS_axis2_null_test_table.csv", index=False)   # p-values kept in the parquet only

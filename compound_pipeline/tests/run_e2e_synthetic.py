@@ -171,6 +171,9 @@ for m, D in MODE_DIRS.items():
           abs(r.observed_pct - 100 * a3.loc[a3.has_spei, "drought_precond"].mean()) < 1e-3
           and 0 < r.exp_month_pct < 100 and 0 < r.exp_month_decade_pct < 100)
 
+check("SI figure Axis III expected baseline written",
+      (PROCESSED / "figures_shared" / "figS_axis3_expected_baseline.png").exists())
+
 # ---- precipitation cache fingerprint ----------------------------------------
 pq = PROCESSED / "thresholds_precip.parquet"
 t0 = pq.stat().st_mtime_ns
