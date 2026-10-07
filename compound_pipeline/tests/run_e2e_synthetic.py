@@ -152,6 +152,15 @@ for m, D in MODE_DIRS.items():
     check(f"[{m}] Fig 6 thresholds finite, insufficient share reported",
           np.isfinite(dg.threshold_pooled).all() and dg.share_insufficient.notna().all())
 
+# ---- Axis III local-baseline diagnostic ---------------------------------------
+eb = pd.read_csv(PROCESSED / "figures_shared" / "axis3_expected_baseline.csv")
+for m, D in MODE_DIRS.items():
+    a3 = pd.read_parquet(D / "axis3.parquet")
+    r = eb[(eb["mode"] == m) & (eb["index"] == "spei3") & (eb["scale"] == "Continental")].iloc[0]
+    check(f"[{m}] Axis III expected baseline: observed == pooled share, expectations in (0, 100)",
+          abs(r.observed_pct - 100 * a3.loc[a3.has_spei, "drought_precond"].mean()) < 1e-3
+          and 0 < r.exp_month_pct < 100 and 0 < r.exp_month_decade_pct < 100)
+
 # ---- precipitation cache fingerprint ----------------------------------------
 pq = PROCESSED / "thresholds_precip.parquet"
 t0 = pq.stat().st_mtime_ns

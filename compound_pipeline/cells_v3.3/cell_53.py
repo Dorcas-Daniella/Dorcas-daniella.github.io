@@ -50,8 +50,55 @@ def fig_drought_baseline(FIG):
     savefig(fig, FIG, "figS_drought_baseline")
 
 
+def axis3_expected_baseline(FIG):
+    """Axis III against its LOCAL baseline. For every HW with an antecedent
+    index value, the expected probability of drought is the drought frequency
+    (index < cfg.drought_threshold) of the SAME PSU and calendar month, over all
+    years (`exp_month`) or within the same decade (`exp_month_decade`, which also
+    removes the background trend). Observed share / expected share > 1 = HW are
+    preceded by drought more often than that place, season (and decade) would
+    imply. Done for SPEI (PET-dependent) and SPI (precipitation only)."""
+    sname, pname = f"spei{cfg.spei_scale_months}", f"spi{cfg.spei_scale_months}"
+    sp = pd.read_parquet(PROCESSED / "spei3.parquet", columns=["psu_idx", "year", "month", sname, pname])
+    sp["dec"] = assign_decade(sp["year"], cfg.decade_bounds).astype(str)
+    base = {}
+    for idx in (sname, pname):
+        v = sp.dropna(subset=[idx]).assign(d=lambda t: t[idx] < cfg.drought_threshold)
+        base[idx] = (v.groupby(["psu_idx", "month"])["d"].mean(),
+                     v.groupby(["psu_idx", "month", "dec"])["d"].mean(),
+                     float(v["d"].mean()))
+    rows = []
+    for m, D in MODE_DIRS.items():
+        a3 = pd.read_parquet(D / "axis3.parquet", columns=["psu_idx", "year", "month", "has_spei", "has_spi",
+                                                         "drought_precond", "drought_precond_spi"])
+        a3["dec"] = assign_decade(a3["year"], cfg.decade_bounds).astype(str)
+        a3 = a3.merge(PSU_GEO[["psu_idx", "region"]], on="psu_idx", how="left")
+        for idx, has, obs in ((sname, "has_spei", "drought_precond"), (pname, "has_spi", "drought_precond_spi")):
+            t = a3[a3[has]].copy()
+            clim, cdec, allm = base[idx]
+            t["e1"] = clim.reindex(pd.MultiIndex.from_frame(t[["psu_idx", "month"]])).to_numpy(float)
+            t["e2"] = cdec.reindex(pd.MultiIndex.from_frame(t[["psu_idx", "month", "dec"]])).to_numpy(float)
+            for sc in ["Continental"] + REGIONS:
+                g = t if sc == "Continental" else t[t["region"] == sc]
+                if not len(g):
+                    continue
+                o, e1, e2 = 100 * g[obs].mean(), 100 * np.nanmean(g["e1"]), 100 * np.nanmean(g["e2"])
+                rows.append(dict(mode=m, index=idx, scale=sc, n_hw=len(g), pct_all_months=100 * allm,
+                                 observed_pct=o, exp_month_pct=e1, exp_month_decade_pct=e2,
+                                 ratio_month=o / e1 if e1 > 0 else np.nan,
+                                 ratio_month_decade=o / e2 if e2 > 0 else np.nan))
+    out = pd.DataFrame(rows)
+    FIG.mkdir(parents=True, exist_ok=True); out.round(3).to_csv(FIG / "axis3_expected_baseline.csv", index=False)
+    for r in out[out["scale"] == "Continental"].itertuples():
+        log.info("Axis III %s %s: observed %.1f%% vs expected %.1f%% (PSU-month) / %.1f%% (PSU-month-decade) "
+                 "-> x%.2f", r.mode, r.index, r.observed_pct, r.exp_month_pct, r.exp_month_decade_pct,
+                 r.ratio_month_decade)
+    return out
+
+
 _ROOT_FIG = PROCESSED / "figures_shared"
 fig_drought_baseline(_ROOT_FIG)
+axis3_expected_baseline(_ROOT_FIG)
 if len(MODE_DIRS) > 1:
     fig_mode_comparison(_ROOT_FIG)
 
