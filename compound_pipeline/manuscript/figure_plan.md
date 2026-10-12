@@ -5,7 +5,7 @@ Mode principal : **calendar**. Les fichiers viennent de `processed_3/calendar/fi
 ## Figures principales
 
 | Article | Fichier | Contenu |
-|---|---|---|---|
+|---|---|---|
 | Fig. 1 | `fig01_spatial_distribution` | Cartes des 3 axes, 1985–2024 (PSU sans EPE avant les HW en gris) |
 | Fig. 2 | `fig02_temporal_trends` | Séries annuelles et tendances, continent + 4 régions |
 | Fig. 3 | `fig03_spatiotemporal_decades` | Cartes des 3 axes par décennie |
