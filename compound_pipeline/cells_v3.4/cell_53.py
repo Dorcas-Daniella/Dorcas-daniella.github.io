@@ -44,7 +44,7 @@ def fig_drought_baseline(FIG):
     d = spei.groupby("psu_idx")[col].apply(lambda v: 100 * (v.dropna() < cfg.drought_threshold).mean()).rename("pct_months_drought").reset_index()
     d = d.merge(PSU_GEO, on="psu_idx", how="left")
     fig = plt.figure(figsize=(8, 7.3), facecolor="white"); gs = GridSpec(2, 1, figure=fig, height_ratios=[1, .04], hspace=.08)
-    ax = map_ax(fig, gs[0], lw=0.7); sc = map_scatter(ax, d, "pct_months_drought", cmap="YlOrBr", norm=mcolors.Normalize(0, 40), s=1.2)
+    ax = map_ax(fig, gs[0], lw=0.8); sc = map_scatter(ax, d, "pct_months_drought", cmap="YlOrBr", norm=mcolors.Normalize(0, 40), s=1.2)
     thr = f"{cfg.drought_threshold:g}".replace("-", "−")
     ax.set_title(f"Baseline drought frequency: % of months with SPEI-3 < {thr}, {YEARS[0]}–{YEARS[-1]}", fontsize=10, fontweight="bold")
     cax = fig.add_subplot(gs[1]); shrink_cax(cax)

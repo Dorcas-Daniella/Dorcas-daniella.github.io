@@ -17,13 +17,13 @@ def _norm_for(axis, values):
 UNDEF_COLOR = "#b0b0b0"
 
 
-def plot_undefined_ratio(ax, df):
+def plot_undefined_ratio(ax, df, s=0.6):
     """Axis II maps: PSU with heatwaves but no EPE attributed BEFORE them have
     an undefined after/before ratio. They are drawn in grey (instead of being
     dropped, which would look like 'no PSU'); returns their count."""
     u = df[df["n_before"].eq(0) & df["count_ratio"].isna()]
     if len(u):
-        map_scatter(ax, u, c=UNDEF_COLOR, s=0.6, zorder=3)
+        map_scatter(ax, u, c=UNDEF_COLOR, s=s, zorder=3)
     return len(u)
 
 
@@ -45,20 +45,21 @@ def undefined_swatch(fig, cax, frac=0.06, gap=0.05, fontsize=6):
 
 def fig01_spatial(D, FIG):
     df = psu_metric_table(D)
-    fig = plt.figure(figsize=(14, 4.7), facecolor="white")
-    gs = GridSpec(2, 3, figure=fig, height_ratios=[1, 0.05], wspace=0.05, hspace=0.12)
+    fig = plt.figure(figsize=(15, 5.4), facecolor="white")
+    gs = GridSpec(2, 3, figure=fig, height_ratios=[1, 0.045], wspace=0.06, hspace=0.10)
     caxes = []
     for j, (axis, lab) in enumerate(zip(("axis1", "axis2", "axis3"), "abc")):
         col = AXIS_PSU_COLS[axis]
         ax = map_ax(fig, gs[0, j])
         if axis == "axis2":
-            nu = plot_undefined_ratio(ax, df)
+            nu = plot_undefined_ratio(ax, df, s=0.9)
             n2 = int(df["n_before"].notna().sum())
             log.info("fig01 axis2: %d of %d PSU with no EPE before HW (ratio undefined, grey); "
                      "of which %d with EPE after HW", nu, n2,
                      int((df["n_before"].eq(0) & df["n_after"].gt(0)).sum()))
-        sc = map_scatter(ax, df, col, cmap=MAP_CFG[axis]["cmap"], norm=_norm_for(axis, df[col].to_numpy()))
-        ax.set_title(AXIS_NAMES[axis], fontsize=9, fontweight="bold", pad=6)
+        sc = map_scatter(ax, df, col, cmap=MAP_CFG[axis]["cmap"], norm=_norm_for(axis, df[col].to_numpy()),
+                         s=0.9, alpha=0.85)
+        ax.set_title(AXIS_NAMES[axis], fontsize=9.5, fontweight="bold", pad=8, color="#222222")
         panel_label(ax, lab, x=0.0, y=1.02)
         cax = fig.add_subplot(gs[1, j]); shrink_cax(cax); caxes.append(cax)
         if axis == "axis2":
@@ -66,6 +67,8 @@ def fig01_spatial(D, FIG):
         cb = fig.colorbar(sc, cax=cax, orientation="horizontal",
                           extend=MAP_CFG[axis]["extend"])
         style_colorbar(cb, AXIS_PSU_LABELS[axis])
+        if axis == "axis2":
+            cb.ax.axvline(1.0, color="#333333", lw=0.6, ls="--", zorder=5)
     region_legend(fig, caxes)
     savefig(fig, FIG, "fig01_spatial_distribution")
 
@@ -84,7 +87,7 @@ def fig03_decades(D, FIG):
         norm = _norm_for(axis, t[col].to_numpy())
         sc = None
         for j, dec in enumerate(DECADES):
-            ax = map_ax(fig, gs[2 * i, j], lw=0.45)
+            ax = map_ax(fig, gs[2 * i, j], lw=0.5)
             sub = t[t["decade"] == dec]
             if axis == "axis2":
                 nu = plot_undefined_ratio(ax, sub[sub["n_hw"] > 0])
@@ -105,6 +108,8 @@ def fig03_decades(D, FIG):
                 undefined_swatch(fig, cax, frac=0.035, gap=0.02)
             cb = fig.colorbar(sc, cax=cax, orientation="horizontal", extend=MAP_CFG[axis]["extend"])
             style_colorbar(cb, AXIS_PSU_LABELS[axis] + ", by decade")
+            if axis == "axis2":
+                cb.ax.axvline(1.0, color="#333333", lw=0.6, ls="--", zorder=5)
             last_cax = cax
     if last_cax is not None:
         region_legend(fig, [last_cax])

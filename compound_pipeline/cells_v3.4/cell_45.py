@@ -59,11 +59,14 @@ def panel_label(ax, s, x=-0.08, y=1.04, size=12):
             va="bottom", ha="left")
 
 
-# Cartography: Natural Earth 1:50m countries. Study countries are near-white
-# with their borders in the colour of their UN sub-region; other countries are
-# light grey; ocean and large lakes are pale blue.
-MAP_STYLE = dict(ocean="#e8eef4", land="#ecebe8", land_edge="#c4c4c4", study="#fcfbf9",
-                 lake_edge="#b3c2d0", neutral_country="#9a9a9a", neutral_region="#333333")
+# Cartography (style of the authors' original Figure 1, without the ocean box):
+# Natural Earth 1:50m countries on a white page. Study countries are white with
+# their borders in the colour of their UN sub-region, drawn above the points;
+# the other African countries of the window are light grey with a grey outline;
+# large lakes are pale blue. Only whole countries are drawn and the map window
+# is fitted to them, so no outline is cut by the frame.
+MAP_STYLE = dict(land="#efeeec", land_edge="#888888", study="#ffffff", water="#dbe6ef",
+                 water_edge="#9fb3c4", neutral_country="#8a8a8a", neutral_region="#2b2b2b")
 # DHS country name (REGIONS_M49) -> Natural Earth ADM0_A3
 COUNTRY_A3 = {
     "Benin": "BEN", "Burkina Faso": "BFA", "Cote d'Ivoire": "CIV", "Ghana": "GHA", "Guinea": "GIN",
@@ -78,10 +81,12 @@ _MAP_CACHE = {}
 
 
 def _map_layers():
-    """Country geometries for the map window, cached: {"other": [...],
-    "study": [...], "region": {region: [...]}, "region_union": {region: geom}}.
-    Empty dict if cartopy cannot provide Natural Earth data (maps then fall
-    back to plain coastlines and borders)."""
+    """Country geometries, cached: {"other": [...], "study": [...],
+    "region": {region: [...]}, "region_union": {region: geom}, "extent": [...]}.
+    "other" = African countries lying entirely in the study window (north
+    Africa, which would be cut by the frame, and small offshore states are
+    left out). Empty dict if cartopy cannot provide Natural Earth data (maps
+    then fall back to plain coastlines and borders)."""
     if "layers" in _MAP_CACHE:
         return _MAP_CACHE["layers"]
     layers = {}
@@ -90,51 +95,62 @@ def _map_layers():
         from shapely.geometry import box
         from shapely.ops import unary_union
         x0, x1, y0, y1 = AFRICA_EXTENT
-        win = box(x0 - 5, y0 - 5, x1 + 5, y1 + 5)
+        clip = box(x0 - 1, y0 - 1, x1 + 1, y1 + 3)   # drops far islands (e.g. Prince Edward Is.)
         path = shpreader.natural_earth(resolution="50m", category="cultural", name="admin_0_countries")
-        shapes = {r.attributes["ADM0_A3"]: r.geometry for r in shpreader.Reader(path).records()
-                  if r.geometry is not None and r.geometry.intersects(win)}
+        recs = [r for r in shpreader.Reader(path).records() if r.geometry is not None]
+        shapes = {r.attributes["ADM0_A3"]: r.geometry.intersection(clip) for r in recs
+                  if r.geometry.intersects(clip)}
         c2r = PSU_GEO.groupby("country")["region"].first().to_dict()
         missing = sorted(c for c in c2r if COUNTRY_A3.get(c) not in shapes)
         if missing:
             log.warning("maps: no Natural Earth outline for %s", missing)
         study = {COUNTRY_A3[c]: r for c, r in c2r.items() if COUNTRY_A3.get(c) in shapes}
+
+        def inside(g, tol=2.5):
+            bx0, by0, bx1, by1 = g.bounds
+            return bx0 >= x0 - tol and bx1 <= x1 + tol and by0 >= y0 - tol and by1 <= y1 + tol
+        other = [shapes[r.attributes["ADM0_A3"]] for r in recs if r.attributes["ADM0_A3"] not in study
+                 and r.attributes.get("CONTINENT") == "Africa" and inside(r.geometry)]
         region = {reg: [shapes[a] for a, r in study.items() if r == reg] for reg in REGIONS}
-        layers = dict(other=[g for a, g in shapes.items() if a not in study],
-                      study=[shapes[a] for a in study],
+        allg = other + [shapes[a] for a in study]
+        bx = np.array([g.bounds for g in allg])
+        m = 0.6                                               # margin (degrees)
+        layers = dict(other=other, study=[shapes[a] for a in study],
                       region={k: v for k, v in region.items() if v},
                       # small buffer in/out closes slivers between neighbouring countries
                       region_union={k: unary_union([g.buffer(0.02) for g in v]).buffer(-0.02)
-                                    for k, v in region.items() if v})
+                                    for k, v in region.items() if v},
+                      extent=[bx[:, 0].min() - m, bx[:, 2].max() + m,
+                              bx[:, 1].min() - m, bx[:, 3].max() + m])
     except Exception as e:                                    # no cartopy / no download
         log.warning("maps: Natural Earth countries unavailable (%s); plain borders used", e)
     _MAP_CACHE["layers"] = layers
     return layers
 
 
-def map_ax(fig, spec, outline="region", lw=0.6):
-    """Map panel of the study window. outline="region": borders of the study
-    countries drawn in the colour of their sub-region (continuous maps);
-    outline="neutral": thin grey country borders and dark sub-region
-    boundaries (maps whose points are coloured by category, Fig 6)."""
+def map_ax(fig, spec, outline="region", lw=0.65):
+    """Map panel. outline="region": borders of the study countries drawn in
+    the colour of their sub-region (continuous maps); outline="neutral": grey
+    country borders and dark sub-region boundaries (maps whose points are
+    coloured by category, Fig 6). `lw` = width of the study-country borders."""
     layers = _map_layers() if HAS_CARTOPY else {}
     if HAS_CARTOPY and layers:
         pc = ccrs.PlateCarree()
         ax = fig.add_subplot(spec, projection=pc)
-        ax.set_extent(AFRICA_EXTENT, crs=pc)
-        ax.set_facecolor(MAP_STYLE["ocean"])
+        ax.set_extent(layers["extent"], crs=pc)
+        ax.set_facecolor("none")                              # white page, no box
         ax.add_geometries(layers["other"], pc, facecolor=MAP_STYLE["land"],
-                          edgecolor=MAP_STYLE["land_edge"], linewidth=0.3, zorder=1)
+                          edgecolor=MAP_STYLE["land_edge"], linewidth=0.35, zorder=1)
         ax.add_geometries(layers["study"], pc, facecolor=MAP_STYLE["study"], edgecolor="none", zorder=1)
-        ax.add_feature(cfeature.LAKES.with_scale("50m"), facecolor=MAP_STYLE["ocean"],
-                       edgecolor=MAP_STYLE["lake_edge"], linewidth=0.2, zorder=1.5)
+        ax.add_feature(cfeature.LAKES.with_scale("50m"), facecolor=MAP_STYLE["water"],
+                       edgecolor=MAP_STYLE["water_edge"], linewidth=0.25, zorder=1.5)
         if outline == "region":
             for reg, geoms in layers["region"].items():
                 ax.add_geometries(geoms, pc, facecolor="none", edgecolor=REGION_COLORS[reg],
                                   linewidth=lw, zorder=5)
         else:
             ax.add_geometries(layers["study"], pc, facecolor="none",
-                              edgecolor=MAP_STYLE["neutral_country"], linewidth=lw * 0.4, zorder=5)
+                              edgecolor=MAP_STYLE["neutral_country"], linewidth=lw * 0.45, zorder=5)
             ax.add_geometries(list(layers["region_union"].values()), pc, facecolor="none",
                               edgecolor=MAP_STYLE["neutral_region"], linewidth=lw, zorder=5)
         for s in ax.spines.values():
@@ -142,10 +158,10 @@ def map_ax(fig, spec, outline="region", lw=0.6):
     elif HAS_CARTOPY:
         ax = fig.add_subplot(spec, projection=ccrs.PlateCarree())
         ax.set_extent(AFRICA_EXTENT, crs=ccrs.PlateCarree())
-        ax.add_feature(cfeature.OCEAN, facecolor=MAP_STYLE["ocean"], zorder=0)
+        ax.set_facecolor("none")
         ax.add_feature(cfeature.LAND, facecolor=MAP_STYLE["study"], edgecolor="none", zorder=0)
-        ax.add_feature(cfeature.COASTLINE, linewidth=0.25, edgecolor="#888888", zorder=2)
-        ax.add_feature(cfeature.BORDERS, linewidth=0.15, edgecolor="#bbbbbb", zorder=1)
+        ax.add_feature(cfeature.COASTLINE, linewidth=0.5, edgecolor="#555555", zorder=2)
+        ax.add_feature(cfeature.BORDERS, linewidth=0.4, edgecolor="#777777", zorder=2)
         for s in ax.spines.values():
             s.set_visible(False)
     else:
@@ -170,14 +186,14 @@ def map_scatter(ax, df, col=None, c=None, cmap=None, norm=None, s=0.6, **kw):
     return ax.scatter(df["lon"], df["lat"], c=c, s=s, **kw)
 
 
-def region_legend(fig, axes, pad_in=0.45, fontsize=7.5):
+def region_legend(fig, axes, pad_in=0.45, fontsize=8):
     """Sub-region key (outlined boxes), centred `pad_in` inches under the
     lowest of `axes` (usually the colour bars)."""
     y = min(a.get_position().y0 for a in axes) - pad_in / fig.get_figheight()
-    h = [mpatches.Patch(facecolor="none", edgecolor=REGION_COLORS[r], linewidth=1.6,
+    h = [mpatches.Patch(facecolor="none", edgecolor=REGION_COLORS[r], linewidth=2.0,
                         label=f"{r} Africa") for r in REGIONS]
     fig.legend(handles=h, loc="upper center", bbox_to_anchor=(0.5, y), ncol=len(REGIONS),
-               fontsize=fontsize, frameon=False, handlelength=2.2, handleheight=1.1,
+               fontsize=fontsize, frameon=False, handlelength=1.8, handleheight=1.0,
                columnspacing=2.5)
 
 
@@ -189,9 +205,9 @@ def shrink_cax(cax, width=0.8, height=0.6):
 
 
 def style_colorbar(cb, label, fontsize=7):
-    cb.set_label(label, fontsize=fontsize, labelpad=3)
-    cb.ax.tick_params(labelsize=6, length=2, width=0.4)
-    cb.outline.set_linewidth(0.4)
+    cb.set_label(label, fontsize=fontsize, labelpad=3, color="#444444")
+    cb.ax.tick_params(labelsize=6.5, length=2, width=0.3, color="#888888", pad=2, direction="out")
+    cb.outline.set_linewidth(0.3); cb.outline.set_edgecolor("#aaaaaa")
 
 
 def smooth(y, frac=0.3):

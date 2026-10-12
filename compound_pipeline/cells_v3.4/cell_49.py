@@ -220,7 +220,7 @@ def fig06_regimes(D, FIG, q, tag, min_support=None):
                  f"ineligible PSU)", fontsize=9, fontweight="bold")
     panel_label(ax, "a", x=-0.55)
     # (b) pooled map
-    ax = map_ax(fig, gs[0, 1], outline="neutral", lw=0.6)
+    ax = map_ax(fig, gs[0, 1], outline="neutral", lw=0.8)
     _regime_map(ax, pooled, f"Regimes, {YEARS[0]}–{YEARS[-1]}"); panel_label(ax, "b", x=0)
     ax.legend(handles=[mpatches.Patch(color=REGIME_COLORS[r], label=r) for r in REGIME_ORDER + [INSUFFICIENT]]
               + [plt.Line2D([0], [0], color=MAP_STYLE["neutral_region"], lw=1, label="Sub-region boundary")],
@@ -240,7 +240,7 @@ def fig06_regimes(D, FIG, q, tag, min_support=None):
     ax.set_title("Regime shares by decade (classifiable PSU)", fontsize=9, fontweight="bold"); panel_label(ax, "c")
     # (d, e) first vs last decade maps
     for k, d in enumerate((FIRST_DEC, LAST_DEC)):
-        ax = map_ax(fig, gs[1, k], outline="neutral", lw=0.6)
+        ax = map_ax(fig, gs[1, k], outline="neutral", lw=0.8)
         _regime_map(ax, by[d], d.replace("-", "–")); panel_label(ax, "de"[k], x=0)
     # (f) transition matrix first -> last, PSU classifiable in both decades
     ax = fig.add_subplot(gs[1, 2])
