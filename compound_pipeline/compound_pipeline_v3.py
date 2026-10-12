@@ -4120,12 +4120,91 @@ def panel_label(ax, s, x=-0.08, y=1.04, size=12):
             va="bottom", ha="left")
 
 
-def map_ax(fig, spec):
-    if HAS_CARTOPY:
+# Cartography: Natural Earth 1:50m countries. Study countries are near-white
+# with their borders in the colour of their UN sub-region; other countries are
+# light grey; ocean and large lakes are pale blue.
+MAP_STYLE = dict(ocean="#e8eef4", land="#ecebe8", land_edge="#c4c4c4", study="#fcfbf9",
+                 lake_edge="#b3c2d0", neutral_country="#9a9a9a", neutral_region="#333333")
+# DHS country name (REGIONS_M49) -> Natural Earth ADM0_A3
+COUNTRY_A3 = {
+    "Benin": "BEN", "Burkina Faso": "BFA", "Cote d'Ivoire": "CIV", "Ghana": "GHA", "Guinea": "GIN",
+    "Liberia": "LBR", "Mali": "MLI", "Niger": "NER", "Nigeria": "NGA", "Senegal": "SEN",
+    "Sierra Leone": "SLE", "Togo": "TGO", "Angola": "AGO", "Cameroon": "CMR",
+    "Central African Republic": "CAF", "Chad": "TCD", "Congo Democratic Republic": "COD",
+    "Gabon": "GAB", "Burundi": "BDI", "Comoros": "COM", "Ethiopia": "ETH", "Kenya": "KEN",
+    "Madagascar": "MDG", "Malawi": "MWI", "Mozambique": "MOZ", "Rwanda": "RWA", "Tanzania": "TZA",
+    "Uganda": "UGA", "Zambia": "ZMB", "Zimbabwe": "ZWE", "Eswatini": "SWZ", "Lesotho": "LSO",
+    "Namibia": "NAM", "South Africa": "ZAF"}
+_MAP_CACHE = {}
+
+
+def _map_layers():
+    """Country geometries for the map window, cached: {"other": [...],
+    "study": [...], "region": {region: [...]}, "region_union": {region: geom}}.
+    Empty dict if cartopy cannot provide Natural Earth data (maps then fall
+    back to plain coastlines and borders)."""
+    if "layers" in _MAP_CACHE:
+        return _MAP_CACHE["layers"]
+    layers = {}
+    try:
+        import cartopy.io.shapereader as shpreader
+        from shapely.geometry import box
+        from shapely.ops import unary_union
+        x0, x1, y0, y1 = AFRICA_EXTENT
+        win = box(x0 - 5, y0 - 5, x1 + 5, y1 + 5)
+        path = shpreader.natural_earth(resolution="50m", category="cultural", name="admin_0_countries")
+        shapes = {r.attributes["ADM0_A3"]: r.geometry for r in shpreader.Reader(path).records()
+                  if r.geometry is not None and r.geometry.intersects(win)}
+        c2r = PSU_GEO.groupby("country")["region"].first().to_dict()
+        missing = sorted(c for c in c2r if COUNTRY_A3.get(c) not in shapes)
+        if missing:
+            log.warning("maps: no Natural Earth outline for %s", missing)
+        study = {COUNTRY_A3[c]: r for c, r in c2r.items() if COUNTRY_A3.get(c) in shapes}
+        region = {reg: [shapes[a] for a, r in study.items() if r == reg] for reg in REGIONS}
+        layers = dict(other=[g for a, g in shapes.items() if a not in study],
+                      study=[shapes[a] for a in study],
+                      region={k: v for k, v in region.items() if v},
+                      # small buffer in/out closes slivers between neighbouring countries
+                      region_union={k: unary_union([g.buffer(0.02) for g in v]).buffer(-0.02)
+                                    for k, v in region.items() if v})
+    except Exception as e:                                    # no cartopy / no download
+        log.warning("maps: Natural Earth countries unavailable (%s); plain borders used", e)
+    _MAP_CACHE["layers"] = layers
+    return layers
+
+
+def map_ax(fig, spec, outline="region", lw=0.6):
+    """Map panel of the study window. outline="region": borders of the study
+    countries drawn in the colour of their sub-region (continuous maps);
+    outline="neutral": thin grey country borders and dark sub-region
+    boundaries (maps whose points are coloured by category, Fig 6)."""
+    layers = _map_layers() if HAS_CARTOPY else {}
+    if HAS_CARTOPY and layers:
+        pc = ccrs.PlateCarree()
+        ax = fig.add_subplot(spec, projection=pc)
+        ax.set_extent(AFRICA_EXTENT, crs=pc)
+        ax.set_facecolor(MAP_STYLE["ocean"])
+        ax.add_geometries(layers["other"], pc, facecolor=MAP_STYLE["land"],
+                          edgecolor=MAP_STYLE["land_edge"], linewidth=0.3, zorder=1)
+        ax.add_geometries(layers["study"], pc, facecolor=MAP_STYLE["study"], edgecolor="none", zorder=1)
+        ax.add_feature(cfeature.LAKES.with_scale("50m"), facecolor=MAP_STYLE["ocean"],
+                       edgecolor=MAP_STYLE["lake_edge"], linewidth=0.2, zorder=1.5)
+        if outline == "region":
+            for reg, geoms in layers["region"].items():
+                ax.add_geometries(geoms, pc, facecolor="none", edgecolor=REGION_COLORS[reg],
+                                  linewidth=lw, zorder=5)
+        else:
+            ax.add_geometries(layers["study"], pc, facecolor="none",
+                              edgecolor=MAP_STYLE["neutral_country"], linewidth=lw * 0.4, zorder=5)
+            ax.add_geometries(list(layers["region_union"].values()), pc, facecolor="none",
+                              edgecolor=MAP_STYLE["neutral_region"], linewidth=lw, zorder=5)
+        for s in ax.spines.values():
+            s.set_visible(False)
+    elif HAS_CARTOPY:
         ax = fig.add_subplot(spec, projection=ccrs.PlateCarree())
         ax.set_extent(AFRICA_EXTENT, crs=ccrs.PlateCarree())
-        ax.add_feature(cfeature.OCEAN, facecolor="#f2f5f9", zorder=0)
-        ax.add_feature(cfeature.LAND, facecolor="#f7f6f4", edgecolor="none", zorder=0)
+        ax.add_feature(cfeature.OCEAN, facecolor=MAP_STYLE["ocean"], zorder=0)
+        ax.add_feature(cfeature.LAND, facecolor=MAP_STYLE["study"], edgecolor="none", zorder=0)
         ax.add_feature(cfeature.COASTLINE, linewidth=0.25, edgecolor="#888888", zorder=2)
         ax.add_feature(cfeature.BORDERS, linewidth=0.15, edgecolor="#bbbbbb", zorder=1)
         for s in ax.spines.values():
@@ -4150,6 +4229,30 @@ def map_scatter(ax, df, col=None, c=None, cmap=None, norm=None, s=0.6, **kw):
         return ax.scatter(df["lon"].to_numpy()[o], df["lat"].to_numpy()[o],
                           c=df[col].to_numpy()[o], cmap=cmap, norm=norm, s=s, **kw)
     return ax.scatter(df["lon"], df["lat"], c=c, s=s, **kw)
+
+
+def region_legend(fig, axes, pad_in=0.45, fontsize=7.5):
+    """Sub-region key (outlined boxes), centred `pad_in` inches under the
+    lowest of `axes` (usually the colour bars)."""
+    y = min(a.get_position().y0 for a in axes) - pad_in / fig.get_figheight()
+    h = [mpatches.Patch(facecolor="none", edgecolor=REGION_COLORS[r], linewidth=1.6,
+                        label=f"{r} Africa") for r in REGIONS]
+    fig.legend(handles=h, loc="upper center", bbox_to_anchor=(0.5, y), ncol=len(REGIONS),
+               fontsize=fontsize, frameon=False, handlelength=2.2, handleheight=1.1,
+               columnspacing=2.5)
+
+
+def shrink_cax(cax, width=0.8, height=0.6):
+    """Centre a colour-bar axes at `width` x `height` of its slot."""
+    p = cax.get_position()
+    cax.set_position([p.x0 + p.width * (1 - width) / 2, p.y0 + p.height * (1 - height) / 2,
+                      p.width * width, p.height * height])
+
+
+def style_colorbar(cb, label, fontsize=7):
+    cb.set_label(label, fontsize=fontsize, labelpad=3)
+    cb.ax.tick_params(labelsize=6, length=2, width=0.4)
+    cb.outline.set_linewidth(0.4)
 
 
 def smooth(y, frac=0.3):
@@ -4272,8 +4375,9 @@ def undefined_swatch(fig, cax, frac=0.06, gap=0.05, fontsize=6):
 
 def fig01_spatial(D, FIG):
     df = psu_metric_table(D)
-    fig = plt.figure(figsize=(14, 5.2), facecolor="white")
-    gs = GridSpec(2, 3, figure=fig, height_ratios=[1, 0.05], wspace=0.05, hspace=0.05)
+    fig = plt.figure(figsize=(14, 4.7), facecolor="white")
+    gs = GridSpec(2, 3, figure=fig, height_ratios=[1, 0.05], wspace=0.05, hspace=0.12)
+    caxes = []
     for j, (axis, lab) in enumerate(zip(("axis1", "axis2", "axis3"), "abc")):
         col = AXIS_PSU_COLS[axis]
         ax = map_ax(fig, gs[0, j])
@@ -4286,13 +4390,13 @@ def fig01_spatial(D, FIG):
         sc = map_scatter(ax, df, col, cmap=MAP_CFG[axis]["cmap"], norm=_norm_for(axis, df[col].to_numpy()))
         ax.set_title(AXIS_NAMES[axis], fontsize=9, fontweight="bold", pad=6)
         panel_label(ax, lab, x=0.0, y=1.02)
-        cax = fig.add_subplot(gs[1, j])
+        cax = fig.add_subplot(gs[1, j]); shrink_cax(cax); caxes.append(cax)
         if axis == "axis2":
-            undefined_swatch(fig, cax)
+            undefined_swatch(fig, cax, frac=0.07, gap=0.09)
         cb = fig.colorbar(sc, cax=cax, orientation="horizontal",
                           extend=MAP_CFG[axis]["extend"])
-        cb.set_label(AXIS_PSU_LABELS[axis], fontsize=7)
-        cb.ax.tick_params(labelsize=6)
+        style_colorbar(cb, AXIS_PSU_LABELS[axis])
+    region_legend(fig, caxes)
     savefig(fig, FIG, "fig01_spatial_distribution")
 
 
@@ -4302,6 +4406,7 @@ def fig03_decades(D, FIG):
     fig = plt.figure(figsize=(14, 12.5), facecolor="white")
     gs = GridSpec(6, 4, figure=fig, wspace=0.03, hspace=0.08,
                   height_ratios=[1, 0.05, 1, 0.05, 1, 0.05])
+    last_cax = None
     for i, (axis, lab) in enumerate(zip(("axis1", "axis2", "axis3"), "abc")):
         col = AXIS_PSU_COLS[axis]
         t = tabs[axis].copy(); t["decade"] = t["decade"].astype(str)
@@ -4309,7 +4414,7 @@ def fig03_decades(D, FIG):
         norm = _norm_for(axis, t[col].to_numpy())
         sc = None
         for j, dec in enumerate(DECADES):
-            ax = map_ax(fig, gs[2 * i, j])
+            ax = map_ax(fig, gs[2 * i, j], lw=0.45)
             sub = t[t["decade"] == dec]
             if axis == "axis2":
                 nu = plot_undefined_ratio(ax, sub[sub["n_hw"] > 0])
@@ -4329,8 +4434,10 @@ def fig03_decades(D, FIG):
             if axis == "axis2":
                 undefined_swatch(fig, cax, frac=0.035, gap=0.02)
             cb = fig.colorbar(sc, cax=cax, orientation="horizontal", extend=MAP_CFG[axis]["extend"])
-            cb.set_label(AXIS_PSU_LABELS[axis] + ", by decade", fontsize=7)
-            cb.ax.tick_params(labelsize=6)
+            style_colorbar(cb, AXIS_PSU_LABELS[axis] + ", by decade")
+            last_cax = cax
+    if last_cax is not None:
+        region_legend(fig, [last_cax])
     savefig(fig, FIG, "fig03_spatiotemporal_decades")
 
 
@@ -4775,9 +4882,11 @@ def fig06_regimes(D, FIG, q, tag, min_support=None):
                  f"ineligible PSU)", fontsize=9, fontweight="bold")
     panel_label(ax, "a", x=-0.55)
     # (b) pooled map
-    ax = map_ax(fig, gs[0, 1]); _regime_map(ax, pooled, f"Regimes, {YEARS[0]}–{YEARS[-1]}"); panel_label(ax, "b", x=0)
-    ax.legend(handles=[mpatches.Patch(color=REGIME_COLORS[r], label=r) for r in REGIME_ORDER + [INSUFFICIENT]],
-              loc="lower left", fontsize=6, frameon=True, framealpha=.9)
+    ax = map_ax(fig, gs[0, 1], outline="neutral", lw=0.6)
+    _regime_map(ax, pooled, f"Regimes, {YEARS[0]}–{YEARS[-1]}"); panel_label(ax, "b", x=0)
+    ax.legend(handles=[mpatches.Patch(color=REGIME_COLORS[r], label=r) for r in REGIME_ORDER + [INSUFFICIENT]]
+              + [plt.Line2D([0], [0], color=MAP_STYLE["neutral_region"], lw=1, label="Sub-region boundary")],
+              loc="lower left", fontsize=6, frameon=True, framealpha=.9, edgecolor="#cccccc")
     # (c) shares by decade among classifiable PSU (stacked), n and insufficient share on top
     ax = fig.add_subplot(gs[0, 2])
     bottom = np.zeros(len(DECADES))
@@ -4793,7 +4902,8 @@ def fig06_regimes(D, FIG, q, tag, min_support=None):
     ax.set_title("Regime shares by decade (classifiable PSU)", fontsize=9, fontweight="bold"); panel_label(ax, "c")
     # (d, e) first vs last decade maps
     for k, d in enumerate((FIRST_DEC, LAST_DEC)):
-        ax = map_ax(fig, gs[1, k]); _regime_map(ax, by[d], d.replace("-", "–")); panel_label(ax, "de"[k], x=0)
+        ax = map_ax(fig, gs[1, k], outline="neutral", lw=0.6)
+        _regime_map(ax, by[d], d.replace("-", "–")); panel_label(ax, "de"[k], x=0)
     # (f) transition matrix first -> last, PSU classifiable in both decades
     ax = fig.add_subplot(gs[1, 2])
     P = trans.to_numpy(float); P = 100 * P / max(1, P.sum())
@@ -5411,10 +5521,13 @@ def fig_drought_baseline(FIG):
     # frequency over the AVAILABLE months only (NaN months are not 'no drought')
     d = spei.groupby("psu_idx")[col].apply(lambda v: 100 * (v.dropna() < cfg.drought_threshold).mean()).rename("pct_months_drought").reset_index()
     d = d.merge(PSU_GEO, on="psu_idx", how="left")
-    fig = plt.figure(figsize=(8, 8), facecolor="white"); gs = GridSpec(2, 1, figure=fig, height_ratios=[1, .04], hspace=.05)
-    ax = map_ax(fig, gs[0]); sc = map_scatter(ax, d, "pct_months_drought", cmap="YlOrBr", norm=mcolors.Normalize(0, 40), s=1.2)
-    ax.set_title(f"Baseline drought frequency: % of months with SPEI-3 < {cfg.drought_threshold}, {YEARS[0]}–{YEARS[-1]}", fontsize=10, fontweight="bold")
-    cb = fig.colorbar(sc, cax=fig.add_subplot(gs[1]), orientation="horizontal", extend="max"); cb.set_label("% of months")
+    fig = plt.figure(figsize=(8, 7.3), facecolor="white"); gs = GridSpec(2, 1, figure=fig, height_ratios=[1, .04], hspace=.08)
+    ax = map_ax(fig, gs[0], lw=0.7); sc = map_scatter(ax, d, "pct_months_drought", cmap="YlOrBr", norm=mcolors.Normalize(0, 40), s=1.2)
+    thr = f"{cfg.drought_threshold:g}".replace("-", "−")
+    ax.set_title(f"Baseline drought frequency: % of months with SPEI-3 < {thr}, {YEARS[0]}–{YEARS[-1]}", fontsize=10, fontweight="bold")
+    cax = fig.add_subplot(gs[1]); shrink_cax(cax)
+    cb = fig.colorbar(sc, cax=cax, orientation="horizontal", extend="max"); style_colorbar(cb, "% of months")
+    region_legend(fig, [cax])
     savefig(fig, FIG, "figS_drought_baseline")
 
 

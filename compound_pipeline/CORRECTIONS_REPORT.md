@@ -157,3 +157,14 @@ Ensuite :
 | Fig. S1 (null de l'Axe II) : décomposition | Nouveau panneau e dans `figS_axis2_null_test` : EPE observés avant et après les HW, chacun rapporté à la médiane du null, par échelle, avec l'enveloppe à 95 % du null exprimée relativement à sa médiane (< 1 = déficit, > 1 = excès). | e2e 62/62 ; rendu contrôlé | Appliquée |
 | Fig. S8 (Axe III et niveau attendu localement) | Nouvelle figure commune `figS_axis3_expected_baseline`. Panneau a : part de HW précédées d'une sécheresse, observée et attendue (même PSU, même mois, même décennie), SPEI et SPI, mode principal. Panneau b : rapport observé / attendu pour les deux références, les deux indices et les deux modes. | e2e 62/62 ; rendu contrôlé | Appliquée |
 | Fig. S5, panneau b | La légende recouvrait le premier point (W = ±7) : elle est déplacée en haut à droite, et les valeurs du ratio sont placées sous les points pour ne plus être masquées par les marqueurs rouges. | e2e 62/62 | Appliquée |
+
+## Ajouts v3.4 (cartographie ; aucun résultat modifié)
+
+Cellules modifiées : 45, 46, 49 et 53 (copies complètes dans `cells_v3.4/`).
+
+| Point | Modification | Vérification | Statut |
+|---|---|---|---|
+| Fond de carte | `map_ax` (cellule 45) dessine les pays Natural Earth au 1:50m (`admin_0_countries`, téléchargé une seule fois par cartopy) : pays étudiés presque blancs, autres pays gris clair, océan et grands lacs bleu pâle. Les 34 pays DHS sont reliés à Natural Earth par leur code `ADM0_A3` (`COUNTRY_A3`) ; leur région vient de `psu.parquet`. Si les données Natural Earth ne sont pas disponibles, les cartes reviennent aux côtes et frontières simples, avec un avertissement. | Rendu sur PSU fictifs ; e2e | Appliquée |
+| Régions sur les cartes continues | Fig. 1, Fig. 3 et carte de fréquence de sécheresse de référence : frontières des pays étudiés dans la couleur de leur sous-région (Western, Eastern, Central, Southern), au-dessus des points, et légende des quatre régions sous les barres de couleur, comme dans les anciennes figures. | Rendu sur PSU fictifs | Appliquée |
+| Régions sur la Fig. 6 | Les couleurs des régions se confondraient avec celles des régimes (violet, orange, vert). Les cartes b, d et e utilisent donc des frontières de pays gris fin et des limites de sous-régions gris foncé ; la légende du panneau b ajoute « Sub-region boundary ». | Rendu sur PSU fictifs | Appliquée |
+| Barres de couleur | Centrées à 80 % de la largeur du panneau, contour fin, graduations courtes (`shrink_cax`, `style_colorbar`). Fig. 1 : figure un peu moins haute (moins de blanc entre cartes et barres) ; case « undefined » de l'Axe II plus écartée du 0. Titre de la carte de sécheresse : « −1 » au lieu de « -1.0 ». | Rendu sur PSU fictifs | Appliquée |
