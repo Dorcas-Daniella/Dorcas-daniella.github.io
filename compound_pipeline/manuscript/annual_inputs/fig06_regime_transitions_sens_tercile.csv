@@ -1,0 +1,9 @@
+regime,All three,Post-HW precip. + Drought-heat,Heat-precip. + Post-HW precip.,Heat-precip. + Drought-heat,Post-HW precip. only,Drought-heat only,Heat-precip. only,None prominent
+All three,11,3,9,20,3,0,80,30
+Post-HW precip. + Drought-heat,2,23,24,59,37,52,147,177
+Heat-precip. + Post-HW precip.,28,26,33,77,44,29,204,156
+Heat-precip. + Drought-heat,29,41,12,613,4,32,283,52
+Post-HW precip. only,149,213,424,459,432,200,798,478
+Drought-heat only,44,60,20,773,33,253,843,647
+Heat-precip. only,42,66,8,750,13,109,958,70
+None prominent,120,144,38,1532,139,428,2474,587
