@@ -5430,11 +5430,14 @@ def fig_sensitivity(D, FIG):
         ax.text(i, v + .8, f"{v:.1f}%", ha="center", fontsize=7, fontweight="bold")
     ax.set_xticks(range(len(thr))); ax.set_xticklabels([f"< {t}" for t in thr]); ax.set_xlabel("SPEI-3 threshold (antecedent month)")
     ax.set_ylabel("% HW with antecedent drought"); ax.set_title("Drought threshold sensitivity", fontsize=9, fontweight="bold"); panel_label(ax, "c", x=-0.1)
-    ax = fig.add_subplot(gs[1, 2:4]); ax.bar(range(len(thr)), dur, color=cols, edgecolor="white"); ax.axhline(1, color="grey", ls="--", lw=.5)
-    for i, v in enumerate(dur):
-        ax.text(i, v + .01, f"{v:.2f}", ha="center", fontsize=7, fontweight="bold")
-    ax.set_xticks(range(len(thr))); ax.set_xticklabels([f"< {t}" for t in thr]); ax.set_xlabel("SPEI-3 threshold")
-    ax.set_ylabel("Duration ratio (drought / no drought)"); ax.set_title("HW duration amplification", fontsize=9, fontweight="bold"); panel_label(ax, "d", x=-0.1)
+    # plotted as % extension (ratio - 1) so that differences between thresholds are visible
+    ext = [100 * (v - 1) for v in dur]
+    ax = fig.add_subplot(gs[1, 2:4]); ax.bar(range(len(thr)), ext, color=cols, edgecolor="white"); ax.axhline(0, color="grey", lw=.5)
+    for i, v in enumerate(ext):
+        ax.text(i, v + .3 if v >= 0 else v - .3, f"{v:+.0f}%", ha="center", va="bottom" if v >= 0 else "top", fontsize=7, fontweight="bold")
+    ax.set_ylim(min(0, min(ext)) * 1.2, max(1, max(ext)) * 1.2)
+    ax.set_xticks(range(len(thr))); ax.set_xticklabels([f"< {t}" for t in thr]); ax.set_xlabel("SPEI-3 threshold (antecedent month)")
+    ax.set_ylabel("Mean duration, drought vs no drought (%)"); ax.set_title("HW duration extension", fontsize=9, fontweight="bold"); panel_label(ax, "d", x=-0.1)
     # (e) lag 1 vs lag 0, SPEI vs SPI by region (% HW preconditioned)
     ax = fig.add_subplot(gs[1, 4:6]); variants = [("drought_precond", "has_spei", "SPEI-3, lag 1 (primary)", "#2c3e50")]
     for L in list(cfg.axis3_lags)[1:]:
