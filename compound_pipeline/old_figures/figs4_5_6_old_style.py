@@ -259,6 +259,12 @@ def fig6_old_style(D, FIG):
         vals = [counts.get(c, 0) for c in REGIME_ORDER]
         bars = ax1.barh(y_pos, vals, color=[REGIME_COLORS[c] for c in REGIME_ORDER],
                         edgecolor="white", linewidth=0.3, height=0.7)
+        exp_share, _ = regime_expected_shares(df, thr, ok)
+        exp_cnt = (exp_share * n_cls).to_numpy()
+        for i, e in enumerate(exp_cnt):               # black tick = expected if independent
+            ax1.plot([e, e], [i - 0.4, i + 0.4], color="black", lw=0.9, zorder=4)
+        ax1.plot([], [], color="black", lw=0.9, label="Expected if the three types\nwere spatially independent")
+        ax1.legend(loc="upper right", fontsize=4.8, frameon=False)
         ax1.set_yticks(y_pos); ax1.set_yticklabels(REGIME_ORDER, fontsize=5.5)
         ax1.set_xlabel(f"Number of PSU (n = {n_cls:,} classifiable; {INSUFFICIENT.lower()}: "
                        f"{n_insuf:,}, {100 * n_insuf / len(df):.1f}%)", fontsize=6)
@@ -267,9 +273,9 @@ def fig6_old_style(D, FIG):
         ax1.tick_params(axis="both", labelsize=5.5, pad=2)
         for i, (bar, val) in enumerate(zip(bars, vals)):
             if val > 0:
-                ax1.text(val + n_cls * 0.01, i, f"{100 * val / n_cls:.1f}%",
+                ax1.text(max(val, exp_cnt[i]) + n_cls * 0.01, i, f"{100 * val / n_cls:.1f}%",
                          va="center", fontsize=5, color="#555")
-        ax1.set_xlim(0, max(vals) * 1.18)
+        ax1.set_xlim(0, max(max(vals), exp_cnt.max()) * 1.2)
         ax1.text(-0.08, 1.05, "a", transform=ax1.transAxes, fontsize=8, fontweight="bold",
                  va="bottom", ha="right")
 

@@ -90,6 +90,23 @@ def classify_regimes(df, thresholds, classifiable):
     return pd.Series(lab, index=df.index)
 
 
+def regime_expected_shares(df, thresholds, classifiable):
+    """Share of each regime expected if the three types were spatially independent:
+    product of the observed per-axis prominence shares p_a (or 1 - p_a) among the
+    classifiable PSU (p_a is close to 1 - q, lower when values tie at the threshold)."""
+    p = {a: float((df.loc[classifiable, c].to_numpy(float) > thresholds[a]).mean())
+         for a, c in FIG6_COLS.items()}
+    exp = {}
+    for x1 in (True, False):
+        for x2 in (True, False):
+            for x3 in (True, False):
+                pr = ((p["axis1"] if x1 else 1 - p["axis1"]) * (p["axis2"] if x2 else 1 - p["axis2"])
+                      * (p["axis3"] if x3 else 1 - p["axis3"]))
+                lab = regime_label(x1, x2, x3)
+                exp[lab] = exp.get(lab, 0.0) + pr
+    return pd.Series(exp).reindex(REGIME_ORDER), p
+
+
 def regime_support_diagnostics(inputs):
     """Support diagnostics only (no thresholds, no classes): what is needed to
     fix cfg.regime_min_support_axis2/3 before looking at the regimes."""
@@ -153,7 +170,7 @@ def _regime_map(ax, df, title):
     for r in [INSUFFICIENT] + REGIME_ORDER[::-1]:
         s = df[df["regime"] == r]
         if len(s):
-            map_scatter(ax, s, c=REGIME_COLORS[r], s=0.3, alpha=0.5,
+            map_scatter(ax, s, c=REGIME_COLORS[r], s=0.8, alpha=0.6,
                         zorder=1 if r in ("None prominent", INSUFFICIENT) else 2)
     ax.set_title(title, fontsize=9, fontweight="bold")
 
@@ -192,6 +209,7 @@ def fig06_regimes(D, FIG, q, tag, min_support=None):
     if bad:
         raise RuntimeError(f"Fig 6: non-finite pooled threshold(s) {bad} (q={q}); "
                            f"diagnostics written to fig06_diagnostics{tag}.csv")
+    exp_share, p_axis = regime_expected_shares(full, thr, ok_full)
 
     by = {}
     for p, df in inputs.items():
@@ -230,11 +248,15 @@ def fig06_regimes(D, FIG, q, tag, min_support=None):
     cnt = counts["full"].reindex(REGIME_ORDER)
     y = np.arange(len(REGIME_ORDER))[::-1]
     ax.barh(y, cnt.to_numpy(), color=[REGIME_COLORS[r] for r in REGIME_ORDER], height=.65)
-    for yi, c in zip(y, cnt.to_numpy()):
-        ax.text(c + max(1, cnt.max()) * .01, yi, f"{100 * c / max(1, n_cls['full']):.1f}%",
+    exp_cnt = (exp_share * n_cls["full"]).to_numpy()
+    for yi, c, e in zip(y, cnt.to_numpy(), exp_cnt):      # black tick = expected if independent
+        ax.plot([e, e], [yi - .42, yi + .42], color="black", lw=1.3, zorder=4)
+        ax.text(max(c, e) + max(1, cnt.max()) * .02, yi, f"{100 * c / max(1, n_cls['full']):.1f}%",
                 va="center", fontsize=7, color="#555")
+    ax.plot([], [], color="black", lw=1.3, label="Expected if the three types\nwere spatially independent")
+    ax.legend(loc="upper right", fontsize=6, frameon=False)
     ax.set_yticks(y); ax.set_yticklabels(REGIME_ORDER, fontsize=7); ax.set_xlabel("Number of PSU")
-    ax.set_xlim(0, max(1, cnt.max()) * 1.2)
+    ax.set_xlim(0, max(1, cnt.max(), exp_cnt.max()) * 1.22)
     ax.set_title(f"Regimes, {YEARS[0]}–{YEARS[-1]}\n(n = {n_cls['full']:,} classifiable; "
                  f"{pct_insuf['full']:.1f}% insufficient data,\nincl. {pct_inel['full']:.1f}% "
                  f"ineligible PSU)", fontsize=9, fontweight="bold")
@@ -294,6 +316,10 @@ def fig06_regimes(D, FIG, q, tag, min_support=None):
                     pct_insufficient=pd.Series(pct_insuf)).round(2).to_csv(
         FIG / f"fig06_regime_counts_by_period{tag}.csv")
     trans.to_csv(FIG / f"fig06_regime_transitions{tag}.csv")
+    pd.DataFrame({"observed_pct": 100 * cnt / max(1, n_cls["full"]),
+                  "expected_if_independent_pct": 100 * exp_share}
+                 ).assign(p_axis1=p_axis["axis1"], p_axis2=p_axis["axis2"], p_axis3=p_axis["axis3"]
+                          ).round(3).to_csv(FIG / f"fig06_regime_expected{tag}.csv")
     pd.DataFrame([dict(n_both=len(both), same_regime_pct=same_pct, chance_pct=chance_pct,
                        pct_insufficient_full=pct_insuf["full"], pct_ineligible_full=pct_inel["full"])]
                  ).round(2).to_csv(FIG / f"fig06_transition_summary{tag}.csv", index=False)
