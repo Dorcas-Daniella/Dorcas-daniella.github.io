@@ -4705,6 +4705,39 @@ def regime_label(x1, x2, x3):
     return "None prominent"
 
 
+def _write_safe(write, path):
+    """Run write(path). On Windows a file open in Excel, read-only, or locked by
+    OneDrive/antivirus raises PermissionError: clear the read-only flag and retry
+    three times, then write next to it as *_new.<ext> instead of stopping the run."""
+    import os, stat
+    path = Path(path)
+    for _ in range(3):
+        try:
+            if path.exists():
+                os.chmod(path, stat.S_IWRITE | stat.S_IREAD)
+            write(path)
+            return path
+        except PermissionError:
+            time.sleep(1.0)
+    alt = path.with_name(f"{path.stem}_new{path.suffix}")
+    write(alt)
+    log.warning("%s is locked (open in another program?) -> written to %s instead", path.name, alt.name)
+    return alt
+
+
+def _csv(obj, path, **kw):
+    return _write_safe(lambda p: obj.to_csv(p, **kw), path)
+
+
+def _savefig_safe(fig, FIG, name):
+    FIG.mkdir(parents=True, exist_ok=True)
+    for ext, kw in (("png", dict(dpi=300)), ("pdf", {})):
+        _write_safe(lambda p: fig.savefig(p, bbox_inches="tight", facecolor="white", **kw),
+                    FIG / f"{name}.{ext}")
+    plt.close(fig)
+    log.info("figure -> %s.png/.pdf", FIG / name)
+
+
 INSUFFICIENT = "Insufficient data"
 REGIME_COLORS[INSUFFICIENT] = "#7f7f7f"     # distinct mid grey (not 'None prominent')
 FIG6_COLS = {"axis1": "cooccur_days_per_year", "axis2": "count_ratio_fig6",
@@ -4871,8 +4904,7 @@ def fig06_regimes(D, FIG, q, tag, min_support=None):
     FIG.mkdir(parents=True, exist_ok=True)
     periods = ["full"] + DECADES
     inputs = {p: regime_inputs(D, p) for p in periods}
-    regime_support_diagnostics(inputs).round(4).to_csv(
-        FIG / "fig06_support_diagnostics.csv", index=False)
+    _csv(regime_support_diagnostics(inputs).round(4), FIG / "fig06_support_diagnostics.csv", index=False)
     if min_support is not None:
         min2, min3 = min_support
         tag = f"{tag}_PROVISIONAL"
@@ -4888,9 +4920,8 @@ def fig06_regimes(D, FIG, q, tag, min_support=None):
     full = inputs["full"]
     ok_full = regime_classifiable(full, min2, min3)
     thr = {a: order_stat_threshold(full.loc[ok_full, c], q) for a, c in FIG6_COLS.items()}
-    regime_full_diagnostics(inputs, thr, min2, min3).round(6).to_csv(
-        FIG / f"fig06_diagnostics{tag}.csv", index=False)
-    pd.Series(thr).rename("threshold").to_csv(FIG / f"fig06_regime_thresholds{tag}.csv")
+    _csv(regime_full_diagnostics(inputs, thr, min2, min3).round(6), FIG / f"fig06_diagnostics{tag}.csv", index=False)
+    _csv(pd.Series(thr).rename("threshold"), FIG / f"fig06_regime_thresholds{tag}.csv")
     bad = {a: t for a, t in thr.items() if not np.isfinite(t)}
     if bad:
         raise RuntimeError(f"Fig 6: non-finite pooled threshold(s) {bad} (q={q}); "
@@ -4992,19 +5023,18 @@ def fig06_regimes(D, FIG, q, tag, min_support=None):
                  f"$x_{{(\\lceil {q:.2f}\\,n \\rceil)}}$ of the classifiable PSU, {YEARS[0]}–{YEARS[-1]}\n"
                  f"pooled thresholds applied to every decade · minimum support: Axis II = {min2} EPE, "
                  f"Axis III = {min3} HW{prov}", fontsize=10, fontweight="bold", y=.975)
-    savefig(fig, FIG, f"fig06_regimes{tag}")
-    shares.round(2).to_csv(FIG / f"fig06_regime_shares_by_decade{tag}.csv")
-    counts.T.assign(n_classifiable=pd.Series(n_cls),
-                    pct_insufficient=pd.Series(pct_insuf)).round(2).to_csv(
-        FIG / f"fig06_regime_counts_by_period{tag}.csv")
-    trans.to_csv(FIG / f"fig06_regime_transitions{tag}.csv")
-    pd.DataFrame({"observed_pct": 100 * cnt / max(1, n_cls["full"]),
-                  "expected_if_independent_pct": 100 * exp_share}
-                 ).assign(p_axis1=p_axis["axis1"], p_axis2=p_axis["axis2"], p_axis3=p_axis["axis3"]
-                          ).round(3).to_csv(FIG / f"fig06_regime_expected{tag}.csv")
-    pd.DataFrame([dict(n_both=len(both), same_regime_pct=same_pct, chance_pct=chance_pct,
-                       pct_insufficient_full=pct_insuf["full"], pct_ineligible_full=pct_inel["full"])]
-                 ).round(2).to_csv(FIG / f"fig06_transition_summary{tag}.csv", index=False)
+    _savefig_safe(fig, FIG, f"fig06_regimes{tag}")
+    _csv(shares.round(2), FIG / f"fig06_regime_shares_by_decade{tag}.csv")
+    _csv(counts.T.assign(n_classifiable=pd.Series(n_cls), pct_insufficient=pd.Series(pct_insuf)).round(2),
+         FIG / f"fig06_regime_counts_by_period{tag}.csv")
+    _csv(trans, FIG / f"fig06_regime_transitions{tag}.csv")
+    _csv(pd.DataFrame({"observed_pct": 100 * cnt / max(1, n_cls["full"]),
+                       "expected_if_independent_pct": 100 * exp_share}
+                      ).assign(p_axis1=p_axis["axis1"], p_axis2=p_axis["axis2"], p_axis3=p_axis["axis3"]).round(3),
+         FIG / f"fig06_regime_expected{tag}.csv")
+    _csv(pd.DataFrame([dict(n_both=len(both), same_regime_pct=same_pct, chance_pct=chance_pct,
+                            pct_insufficient_full=pct_insuf["full"], pct_ineligible_full=pct_inel["full"])]).round(2),
+         FIG / f"fig06_transition_summary{tag}.csv", index=False)
     return shares
 
 
