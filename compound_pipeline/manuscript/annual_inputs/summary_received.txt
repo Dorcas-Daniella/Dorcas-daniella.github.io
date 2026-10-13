@@ -152,3 +152,38 @@
 461  axis3       region      Western     pct_drought_lag0_a             6.623             -0.106              12.262  3.181  0.001                True       40          True
 462  axis3       region      Western          diff_duration            -0.148             -0.652               0.262 -0.781  0.435               False       40          True
 463  axis3       region      Western              diff_peak             1.591              0.859               2.303  4.346  0.000                True       40          True
+          scale       unit                         ci_method  n_units  lmf_naive  lmf_seasonal  lmf_seasonal_lo  lmf_seasonal_hi level
+0   Continental    psu_idx                bootstrap CI — PSU    53782      0.087         0.254            0.251            0.257  None
+1       Central    psu_idx                bootstrap CI — PSU     5709      0.122         0.415            0.405            0.425  None
+2       Eastern    psu_idx                bootstrap CI — PSU    21634      0.149         0.248            0.244            0.252  None
+3      Southern    psu_idx                bootstrap CI — PSU     3777      0.262         0.187            0.182            0.192  None
+4       Western    psu_idx                bootstrap CI — PSU    22662      0.009         0.197            0.190            0.205  None
+39  Continental  era5_cell  cluster bootstrap CI — ERA5 cell    10687      0.087         0.254            0.239            0.271  None
+40      Central  era5_cell  cluster bootstrap CI — ERA5 cell     2188      0.122         0.415            0.384            0.445  None
+41      Eastern  era5_cell  cluster bootstrap CI — ERA5 cell     4169      0.149         0.248            0.227            0.269  None
+42     Southern  era5_cell  cluster bootstrap CI — ERA5 cell      760      0.262         0.187            0.165            0.211  None
+43      Western  era5_cell  cluster bootstrap CI — ERA5 cell     3612      0.009         0.197            0.155            0.254  None
+['psu_idx', 'n_hw', 'n_cooccur_days', 'n_hw_with_cooc', 'cooccur_days_per_year', 'pct_hw_with_cooc', 'country', 'region', 'era5_cell', 'epe_eligible', 'temp_eligible', 'spei_eligible', 'axis12_eligible', 'scale'] 53782
+PSU n 53782 mean days 1.68 pct zero 54.8 max 63 mean per yr 0.042
+HW with cooc per PSU mean 1.6 pct zero 54.8 max 50
+    window_days        scale  primary      n_hw  precursor_rate  trigger_rate  rate_diff  n_before  n_after  count_ratio
+0             7  Continental    False  10544758           0.023         0.048      0.024    180744   507316        2.807
+5            15  Continental    False  10526770           0.047         0.095      0.047    331080   941694        2.844
+10           30  Continental     True  10501242           0.086         0.185      0.099    545809  1697041        3.109
+15           45  Continental    False  10470665           0.119         0.281      0.163    758056  2486801        3.280
+20           60  Continental    False  10440010           0.151         0.384      0.234    965754  3350319        3.469
+countries ratio>1: 34 of 34 min ['Gabon', np.float64(1.0052)]
+                      Country  EPE_ratio
+29                      Gabon     1.0052
+28  Congo Democratic Republic     1.4907
+24                     Angola     1.7461
+9                     Senegal     1.7582
+16                 Madagascar     1.9868
+19                     Rwanda     2.1119
+                      Country  CCE_trend_per_decade  CCE_trend_per_decade_FDRsig
+16                 Madagascar                0.0895                         True
+28  Congo Democratic Republic                0.0523                         True
+19                     Rwanda                0.0431                         True
+13                    Comoros                0.0374                         True
+21                     Uganda                0.0322                         True
+29                      Gabon                0.0320                         True
