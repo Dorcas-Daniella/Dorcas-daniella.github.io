@@ -133,11 +133,28 @@ def regime_full_diagnostics(inputs, thresholds, min2, min3):
     return pd.DataFrame(rows)
 
 
+def _regime_map_ax(fig, spec):
+    """Map panel in the style of the authors' original Fig 6: country borders and
+    coastlines, light-grey ocean, fixed Africa extent (falls back to map_ax
+    without cartopy)."""
+    if not HAS_CARTOPY:
+        return map_ax(fig, spec, outline="neutral", lw=0.8)
+    ax = fig.add_subplot(spec, projection=ccrs.PlateCarree())
+    ax.set_extent(AFRICA_EXTENT, crs=ccrs.PlateCarree())
+    ax.add_feature(cfeature.BORDERS, linewidth=0.2, edgecolor="#999999")
+    ax.add_feature(cfeature.COASTLINE, linewidth=0.3, edgecolor="#666666")
+    ax.add_feature(cfeature.OCEAN, facecolor="#f5f5f5", zorder=0)
+    ax.add_feature(cfeature.LAND, facecolor="white", zorder=0)
+    return ax
+
+
 def _regime_map(ax, df, title):
+    """Original Fig 6 points: 'None prominent' and 'Insufficient data' underneath."""
     for r in [INSUFFICIENT] + REGIME_ORDER[::-1]:
         s = df[df["regime"] == r]
         if len(s):
-            map_scatter(ax, s, c=REGIME_COLORS[r], s=0.8)
+            map_scatter(ax, s, c=REGIME_COLORS[r], s=0.3, alpha=0.5,
+                        zorder=1 if r in ("None prominent", INSUFFICIENT) else 2)
     ax.set_title(title, fontsize=9, fontweight="bold")
 
 
@@ -206,7 +223,7 @@ def fig06_regimes(D, FIG, q, tag, min_support=None):
              "by chance)", tag, len(both), FIRST_DEC, LAST_DEC, same_pct, chance_pct)
 
     fig = plt.figure(figsize=(15, 12.5), facecolor="white")
-    gs = GridSpec(2, 3, figure=fig, width_ratios=[1, 1, 1], hspace=0.34, wspace=0.3,
+    gs = GridSpec(2, 3, figure=fig, width_ratios=[1, 1, 1], hspace=0.5, wspace=0.3,
                   top=0.86, bottom=0.08, left=0.13, right=0.90)
     # (a) counts and shares, pooled (shares among classifiable PSU)
     ax = fig.add_subplot(gs[0, 0])
@@ -223,11 +240,13 @@ def fig06_regimes(D, FIG, q, tag, min_support=None):
                  f"ineligible PSU)", fontsize=9, fontweight="bold")
     panel_label(ax, "a", x=-0.55)
     # (b) pooled map
-    ax = map_ax(fig, gs[0, 1], outline="neutral", lw=0.8)
+    ax = _regime_map_ax(fig, gs[0, 1])
     _regime_map(ax, pooled, f"Regimes, {YEARS[0]}–{YEARS[-1]}"); panel_label(ax, "b", x=0)
-    ax.legend(handles=[mpatches.Patch(color=REGIME_COLORS[r], label=r) for r in REGIME_ORDER + [INSUFFICIENT]]
-              + [plt.Line2D([0], [0], color=MAP_STYLE["neutral_region"], lw=1, label="Sub-region boundary")],
-              loc="lower left", fontsize=6, frameon=True, framealpha=.9, edgecolor="#cccccc")
+    # legend below the map, outside the data area
+    ax.legend(handles=[mpatches.Patch(facecolor=REGIME_COLORS[r], edgecolor="none", label=r)
+                       for r in REGIME_ORDER + [INSUFFICIENT]],
+              loc="upper center", bbox_to_anchor=(0.5, -0.02), ncol=2, fontsize=6,
+              frameon=False, handlelength=1.0, handleheight=0.8, columnspacing=1.0, labelspacing=0.3)
     # (c) shares by decade among classifiable PSU (stacked), n and insufficient share on top
     ax = fig.add_subplot(gs[0, 2])
     bottom = np.zeros(len(DECADES))
@@ -243,7 +262,7 @@ def fig06_regimes(D, FIG, q, tag, min_support=None):
     ax.set_title("Regime shares by decade (classifiable PSU)", fontsize=9, fontweight="bold"); panel_label(ax, "c")
     # (d, e) first vs last decade maps
     for k, d in enumerate((FIRST_DEC, LAST_DEC)):
-        ax = map_ax(fig, gs[1, k], outline="neutral", lw=0.8)
+        ax = _regime_map_ax(fig, gs[1, k])
         _regime_map(ax, by[d], d.replace("-", "–")); panel_label(ax, "de"[k], x=0)
     # (f) transition matrix first -> last, PSU classifiable in both decades
     ax = fig.add_subplot(gs[1, 2])
