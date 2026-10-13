@@ -44,18 +44,17 @@ Le texte, la structure, les figures et l'interprétation d'ensemble sont conserv
 | Résultats, durée et température | +1 à 1,5 jour (+17 à 31 %) ; +1,9 °C | +0,55 jour (+9 %) ; australe +0,97 jour (+19 %), +1,7 °C ; l'écart de température augmente dans le temps | Lag 1 |
 | Résultats, parts par décennie | 23,6 → 37,6 % ; 63,5 % | 15,5 → 34,9 % ; 59,8 % ; + comparaison au niveau attendu localement (×1,10) | Lag 1 |
 | Résultats, couplage | « suggests a strengthening land-atmosphere coupling » | retiré | La hausse disparaît avec le SPI |
-| Résultats, régimes | « most locations exposed to multiple prominent hazard types » ; 20,6 % le plus fréquent | « at most one prominent hazard type » ; 37,7 % aucun, puis les types seuls ; évolution par décennie et transitions | Nouvelle classification ; 35 533 PSU classables (66 %) |
+| Résultats, régimes | « most locations exposed to multiple prominent hazard types » ; 20,6 % pour chaleur–pluie + pluie après la vague de chaleur | « at most one prominent hazard type » ; 51 514 PSU classables (94 %) ; 39,5 % aucun type (43,8 % attendus par hasard) ; chaleur–pluie + pluie après la vague de chaleur devient la plus rare (1,4 % contre 4,2 % attendus), les trois ensemble 0,1 % ; par décennie : aucun type 64,6 → 24,6 %, sécheresse–chaleur seule 10,2 → 28,1 % | Même seuil (quart supérieur) pour les trois axes au lieu de seuils mixtes (> 0, > 1,5, médiane) ; ratio avec +0,5 ; catégorie « Insufficient data » |
 | Discussion, 3 résultats clés | « drought systematically prolongs heatwaves… intensifying » | « heatwaves preceded by drought last longer and are hotter, and a rapidly expanding share… » ; 2e résultat complété (saisonnalité, déficit avant) | Cohérence avec les résultats |
 | Discussion, sécheresse | « has strengthened over time » ; « approaching levels reported in Mediterranean Europe » | retirés ; ajout de la littérature africaine et de la limite SPI | Non démontré ; pas de référence pour l'Europe méditerranéenne |
 | Discussion, Clausius–Clapeyron | « physically consistent with the release of this moisture » | asymétrie en partie saisonnière, déficit avant, conditions anticycloniques ; Liu et al. 2026 | Contredit par le test null |
-| Discussion, conclusion | « gain physical coherence, evolving… to distinct regional-scale regimes » | « net shift towards regimes dominated by heat-precipitation co-occurrence » | Les régimes changent localement (20 % inchangés, 16 % attendu par hasard) |
+| Discussion, conclusion | « gain physical coherence, evolving… to distinct regional-scale regimes » | « net shift from locations without any prominent hazard towards regimes dominated by drought-heat coupling and heat-precipitation co-occurrence » | Les régimes changent localement (22 % inchangés, 20 % attendus par hasard) |
 | Limites | — | + saisonnalité du seuil annuel ; + SPEI après 2014 ; + décalage d'un jour ERA5 / CHIRPS | Transparence |
-| Méthodes | CHIRPS 0,25° ; SPEI « generalized logistic » ; Axe II avec doublons ; mois du début ; pas de test ; classification des pays fort / modéré / faible | CHIRPS 0,05° ; log-logistique (xclim) ; attribution unique ; test null ; mois précédent ; IC par bootstrap en blocs + Mann-Kendall ; règles de la Fig. 6 | Nouveau code |
+| Méthodes | Paragraphe « Sensitivity analyses » regroupant tous les tests ; CHIRPS 0,25° ; SPEI « generalized logistic » ; Axe II avec doublons ; mois du début ; pas de test ; classification des pays fort / modéré / faible | CHIRPS 0,05° ; log-logistique (xclim) ; attribution unique ; test null ; mois précédent ; IC par bootstrap en blocs + Mann-Kendall ; règles de la Fig. 6 | Nouveau code |
 
 ## 5. À faire de votre côté
 
 1. Refaire les figures avec vos anciens codes, en lisant les nouveaux fichiers. Fig. 4b : mettre le jour 0 à NaN (sinon la courbe tombe à 0). Fig. 4c : échelle de couleurs jusqu'à 6 au moins (ou logarithmique) et texte blanc sur les cases foncées. Fig. 5c : corriger le symbole « % » du titre. La Fig. 5 contient un tableau `STATS` écrit à la main avec les anciens chiffres : il faut le recalculer.
-2. Vérifier les deux phrases sur la Fig. 6b (Afrique de l'Ouest et australe, Afrique de l'Est).
-3. Fig. 6 : seules 66 % des PSU sont classables (option A). Si vous choisissez une autre option, prévenez-moi.
-4. Supplementary Table S2 (enquêtes DHS) et lien du dépôt à compléter.
-5. La figure S6 (classification des pays) venait de l'ancien code. Il faut soit la refaire à partir des nouvelles tendances, soit la retirer, puisque la méthode correspondante n'est plus décrite.
+2. Extended Data Fig. S13 : ajouter la version avec un minimum de 10 EPE (`fig06_regimes_sens_min10`) en panneau b, à côté de la version tercile.
+3. Supplementary Table S2 (enquêtes DHS) et lien du dépôt à compléter.
+4. La figure S6 (classification des pays) venait de l'ancien code. Il faut soit la refaire à partir des nouvelles tendances, soit la retirer, puisque la méthode correspondante n'est plus décrite.
