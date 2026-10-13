@@ -146,8 +146,9 @@ cfg = SimpleNamespace(
     # Fig 6 minimum supports (None = support diagnostics only, no classes/figure).
     # Fixed at 10 / 10 from fig06_support_diagnostics.csv alone, BEFORE thresholds
     # or classes were inspected (same rule in both threshold modes).
-    regime_min_support_axis2=10,    # min n_before + n_after per PSU (and per decade)
-    regime_min_support_axis3=10,    # min n_hw_spei per PSU (and per decade)
+    regime_min_support_axis2=1,     # min n_before + n_after per PSU (and per decade); 1 = unclassifiable only if no EPE
+    regime_min_support_axis3=1,     # min n_hw_spei per PSU (and per decade)
+    regime_min_support_sens=10,     # sensitivity run of Fig 6 with this minimum on both axes
     spei_threshold_sens=(-0.5, -1.0, -1.5, -2.0),
     # processing
     psu_block_size=3000,
@@ -4963,7 +4964,14 @@ def fig06_regimes(D, FIG, q, tag, min_support=None):
 
 for _mode, _D in MODE_DIRS.items():
     fig06_regimes(_D, FIG_DIRS[_mode], cfg.regime_quantile, "")                        # main (q75)
-    fig06_regimes(_D, FIG_DIRS[_mode], cfg.regime_quantile_sens, "_sens_tercile")      # sensitivity
+    fig06_regimes(_D, FIG_DIRS[_mode], cfg.regime_quantile_sens, "_sens_tercile")      # sensitivity: tercile
+    # sensitivity: minimum support of cfg.regime_min_support_sens on both axes (q75)
+    _m2, _m3 = cfg.regime_min_support_axis2, cfg.regime_min_support_axis3
+    cfg.regime_min_support_axis2 = cfg.regime_min_support_axis3 = cfg.regime_min_support_sens
+    try:
+        fig06_regimes(_D, FIG_DIRS[_mode], cfg.regime_quantile, f"_sens_min{cfg.regime_min_support_sens}")
+    finally:
+        cfg.regime_min_support_axis2, cfg.regime_min_support_axis3 = _m2, _m3
 
 
 # %%

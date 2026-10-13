@@ -168,3 +168,13 @@ Cellules modifiées : 45, 46, 49 et 53 (copies complètes dans `cells_v3.4/`).
 | Régions sur les cartes continues | Fig. 1, Fig. 3 et carte de fréquence de sécheresse de référence : frontières des pays étudiés dans la couleur de leur sous-région (Western, Eastern, Central, Southern), au-dessus des points, et légende des quatre régions sous les barres de couleur, comme dans les anciennes figures. | Rendu sur PSU fictifs | Appliquée |
 | Régions sur la Fig. 6 | Les couleurs des régions se confondraient avec celles des régimes (violet, orange, vert). Les cartes b, d et e utilisent donc des frontières de pays gris fin et des limites de sous-régions gris foncé ; la légende du panneau b ajoute « Sub-region boundary ». | Rendu sur PSU fictifs | Appliquée |
 | Traits, points et barres de couleur | Frontières des pays étudiés dans la couleur de leur région, au-dessus des points (épaisseur 0,65 pt pour la Fig. 1 comme dans l'ancienne figure, 0,5 pt pour la Fig. 3, 0,8 pt pour la carte de sécheresse et la Fig. 6). Fig. 1 : 15 × 5,4 pouces, points de taille 0,9 et d'opacité 0,85 comme dans l'ancienne figure. Barres de couleur fines et centrées (80 % de la largeur), contour gris clair, ratio = 1 marqué en tirets sur la barre de l'Axe II (Fig. 1 et 3). Légende des régions agrandie. Titre de la carte de sécheresse : « −1 » au lieu de « -1.0 ». | Rendu sur PSU fictifs | Appliquée |
+
+## Ajouts v3.5 (Fig. 6 et Fig. S8 ; aucun autre résultat modifié)
+
+Cellules modifiées : 4, 49 et 52 (copies complètes des cellules 49 et 52 dans `cells_v3.5/`).
+
+| Point | Modification | Vérification | Statut |
+|---|---|---|---|
+| Fig. 6, support minimal | `regime_min_support_axis2/3` passent de 10 à 1 (cellule 4) : un PSU n'est « Insufficient data » que s'il n'a aucun EPE attribué (ratio indéfini) ou aucune vague de chaleur avec SPEI, comme dans l'ancien code. En mode annuel, le minimum de 10 laissait 33 % des PSU éligibles inclassables sur 1985-2024 et plus de la moitié par décennie. | e2e synthétique : sorties identiques à un appel avec `min_support=(1, 1)` | Appliquée |
+| Fig. 6, sensibilité | Nouveau paramètre `regime_min_support_sens=10` (cellule 4). La cellule 49 produit en plus la version avec 10 EPE et 10 vagues de chaleur minimum, suffixe `_sens_min10`, puis rétablit la configuration. | e2e synthétique : fichiers `_sens_min10` écrits et différents de la version principale | Appliquée |
+| Fig. S8, panneau d | L'allongement de la durée est tracé en % ((ratio − 1) × 100) avec les valeurs sur les barres ; les ratios de 1,07 à 1,16 sur un axe partant de 0 étaient indiscernables. | Rendu avec les valeurs du run annuel | Appliquée |
