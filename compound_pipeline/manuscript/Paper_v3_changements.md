@@ -40,7 +40,7 @@ Le texte, la structure, les figures et l'interprétation d'ensemble sont conserv
 | Résultats, tendances sécheresse | +4,70 « % per decade » | +6,50 « percentage points per decade » ; + phrase SPI | Lag 1 ; unité correcte |
 | Résultats, Axe II | 3,09 / 1,29 millions, ratio 2,39 ; « sensitive to prior heat accumulation » | 1,70 / 0,55 million, ratio 3,11 ; + test null (attendu 1,84 ; ×1,69 ; déficit avant 0,63) ; « heatwaves concentrate at the end of the dry season » | Comptage unique ; saisonnalité testée |
 | Résultats, pays | 33 sur 34, Gabon 0,99 | 34 sur 34, Gabon 1,01 | Nouveaux chiffres |
-| Résultats, Fig. 4b | « 5 to 15 days after » | **à décrire à partir de la nouvelle Fig. 4b** | La figure change avec le comptage unique |
+| Résultats, Fig. 4b | « 5 to 15 days after » | pic au premier jour après la fin de la vague de chaleur ; après > avant sur la plus grande partie de la fenêtre ; pic plus marqué en 2015-2024 | La figure change avec le comptage unique |
 | Résultats, durée et température | +1 à 1,5 jour (+17 à 31 %) ; +1,9 °C | +0,55 jour (+9 %) ; australe +0,97 jour (+19 %), +1,7 °C ; l'écart de température augmente dans le temps | Lag 1 |
 | Résultats, parts par décennie | 23,6 → 37,6 % ; 63,5 % | 15,5 → 34,9 % ; 59,8 % ; + comparaison au niveau attendu localement (×1,10) | Lag 1 |
 | Résultats, couplage | « suggests a strengthening land-atmosphere coupling » | retiré | La hausse disparaît avec le SPI |
@@ -54,9 +54,8 @@ Le texte, la structure, les figures et l'interprétation d'ensemble sont conserv
 
 ## 5. À faire de votre côté
 
-1. Refaire les figures avec vos anciens codes, en lisant les nouveaux fichiers. La Fig. 5 contient un tableau `STATS` écrit à la main avec les anciens chiffres : il faut le recalculer.
-2. Décrire la nouvelle Fig. 4b (phrase entre crochets).
-3. Vérifier les deux phrases sur la Fig. 6b (Afrique de l'Ouest et australe, Afrique de l'Est).
-4. Fig. 6 : seules 66 % des PSU sont classables (option A). Si vous choisissez une autre option, prévenez-moi.
-5. Supplementary Table S2 (enquêtes DHS) et lien du dépôt à compléter.
-6. La figure S6 (classification des pays) venait de l'ancien code. Il faut soit la refaire à partir des nouvelles tendances, soit la retirer, puisque la méthode correspondante n'est plus décrite.
+1. Refaire les figures avec vos anciens codes, en lisant les nouveaux fichiers. Fig. 4b : mettre le jour 0 à NaN (sinon la courbe tombe à 0). Fig. 4c : échelle de couleurs jusqu'à 6 au moins (ou logarithmique) et texte blanc sur les cases foncées. Fig. 5c : corriger le symbole « % » du titre. La Fig. 5 contient un tableau `STATS` écrit à la main avec les anciens chiffres : il faut le recalculer.
+2. Vérifier les deux phrases sur la Fig. 6b (Afrique de l'Ouest et australe, Afrique de l'Est).
+3. Fig. 6 : seules 66 % des PSU sont classables (option A). Si vous choisissez une autre option, prévenez-moi.
+4. Supplementary Table S2 (enquêtes DHS) et lien du dépôt à compléter.
+5. La figure S6 (classification des pays) venait de l'ancien code. Il faut soit la refaire à partir des nouvelles tendances, soit la retirer, puisque la méthode correspondante n'est plus décrite.
