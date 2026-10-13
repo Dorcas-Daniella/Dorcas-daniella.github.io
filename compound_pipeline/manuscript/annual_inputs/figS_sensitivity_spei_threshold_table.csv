@@ -1,0 +1,5 @@
+threshold,pct_hw,duration_ratio,trend_pct_per_decade,trend_ci_lo,trend_ci_hi,trend_ci_method
+-0.5,42.5258,1.0711,6.9044,4.7179,9.7646,scipy.stats.theilslopes 95% CI (not the block bootstrap of step 14)
+-1.0,26.6067,1.0937,6.486,4.5037,8.6467,scipy.stats.theilslopes 95% CI (not the block bootstrap of step 14)
+-1.5,14.2184,1.1195,4.6978,3.3001,6.1175,scipy.stats.theilslopes 95% CI (not the block bootstrap of step 14)
+-2.0,5.6524,1.156,2.0201,1.1139,3.0898,scipy.stats.theilslopes 95% CI (not the block bootstrap of step 14)
