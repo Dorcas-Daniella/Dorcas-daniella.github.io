@@ -1,0 +1,9 @@
+regime,1985-1994,1995-2004,2005-2014,2015-2024
+All three,0.52,0.99,3.14,1.82
+Post-HW precip. + Drought-heat,2.46,3.24,8.54,3.79
+Heat-precip. + Post-HW precip.,3.67,5.73,2.92,3.36
+Heat-precip. + Drought-heat,6.3,3.48,10.44,20.66
+Post-HW precip. only,17.46,14.86,6.47,6.06
+Drought-heat only,12.74,4.62,13.07,10.3
+Heat-precip. only,13.94,29.77,24.86,35.46
+None prominent,42.91,37.31,30.56,18.56
