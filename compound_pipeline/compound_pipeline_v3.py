@@ -144,8 +144,9 @@ cfg = SimpleNamespace(
     regime_quantile_sens=2/3,     # Fig 6 sensitivity: top tercile
     regime_threshold_reference="pooled",   # decade panels use the pooled full-period thresholds
     # Fig 6 minimum supports (None = support diagnostics only, no classes/figure).
-    # Fixed at 10 / 10 from fig06_support_diagnostics.csv alone, BEFORE thresholds
-    # or classes were inspected (same rule in both threshold modes).
+    # Primary: 1 / 1, as in the original code (unclassifiable only when a metric is
+    # undefined). 10 / 10, fixed from fig06_support_diagnostics.csv before classes
+    # were inspected, is kept as a sensitivity run (regime_min_support_sens).
     regime_min_support_axis2=1,     # min n_before + n_after per PSU (and per decade); 1 = unclassifiable only if no EPE
     regime_min_support_axis3=1,     # min n_hw_spei per PSU (and per decade)
     regime_min_support_sens=10,     # sensitivity run of Fig 6 with this minimum on both axes
