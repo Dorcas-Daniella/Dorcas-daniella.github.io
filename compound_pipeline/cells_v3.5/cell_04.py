@@ -64,6 +64,7 @@ cfg = SimpleNamespace(
     regime_min_support_axis2=1,     # min n_before + n_after per PSU (and per decade); 1 = unclassifiable only if no EPE
     regime_min_support_axis3=1,     # min n_hw_spei per PSU (and per decade)
     regime_min_support_sens=10,     # sensitivity run of Fig 6 with this minimum on both axes
+    regime_ratio_pseudocount=0.5,   # Fig 6 Axis II metric (n_after + 0.5) / (n_before + 0.5)
     spei_threshold_sens=(-0.5, -1.0, -1.5, -2.0),
     # processing
     psu_block_size=3000,

@@ -30,8 +30,9 @@ def regime_inputs(D, period):
     """Per-PSU inputs of Fig 6 for one period ("full" or a decade label):
     eligibility, the three metrics and the supports (Axis II: n_before +
     n_after; Axis III: n_hw_spei; Axis I: none). The Axis-II ratio is REBUILT
-    for this figure only: nb = na = 0 -> NaN (insufficient); nb = 0 < na ->
-    +inf; nb > 0 -> na / nb (0 when na = 0). Tables keep NaN when nb = 0."""
+    for this figure only: nb = na = 0 -> NaN (insufficient); otherwise
+    (na + k) / (nb + k) with k = cfg.regime_ratio_pseudocount (Haldane-Anscombe,
+    finite when nb = 0). Tables keep the raw ratio (NaN when nb = 0)."""
     el = psu_eligibility(cfg, D)
     if period == "full":
         a1 = agg(D, "axis1_by_psu")[["psu_idx", "cooccur_days_per_year"]]
@@ -48,9 +49,11 @@ def regime_inputs(D, period):
           .merge(a1, on="psu_idx", how="left").merge(a2, on="psu_idx", how="left")
           .merge(a3, on="psu_idx", how="left"))
     nb = df["n_before"].to_numpy(float); na = df["n_after"].to_numpy(float)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        df["count_ratio_fig6"] = np.where(nb > 0, na / np.where(nb > 0, nb, 1.0),
-                                          np.where(na > 0, np.inf, np.nan))
+    # Haldane-Anscombe correction: (n_after + k) / (n_before + k), k = 0.5, finite
+    # when n_before = 0 (with few EPEs a raw ratio would be +inf for many PSUs and
+    # the pooled quantile would be infinite); NaN only when no EPE at all.
+    k = cfg.regime_ratio_pseudocount
+    df["count_ratio_fig6"] = np.where(nb + na > 0, (na + k) / (nb + k), np.nan)
     df["support_axis2"] = nb + na
     df["support_axis3"] = df["n_hw_spei"].to_numpy(float)
     df["fig6_eligible"] = (df["axis12_eligible"].fillna(False)
