@@ -248,15 +248,11 @@ def fig06_regimes(D, FIG, q, tag, min_support=None):
     cnt = counts["full"].reindex(REGIME_ORDER)
     y = np.arange(len(REGIME_ORDER))[::-1]
     ax.barh(y, cnt.to_numpy(), color=[REGIME_COLORS[r] for r in REGIME_ORDER], height=.65)
-    exp_cnt = (exp_share * n_cls["full"]).to_numpy()
-    for yi, c, e in zip(y, cnt.to_numpy(), exp_cnt):      # black tick = expected if independent
-        ax.plot([e, e], [yi - .42, yi + .42], color="black", lw=1.3, zorder=4)
-        ax.text(max(c, e) + max(1, cnt.max()) * .02, yi, f"{100 * c / max(1, n_cls['full']):.1f}%",
+    for yi, c in zip(y, cnt.to_numpy()):
+        ax.text(c + max(1, cnt.max()) * .01, yi, f"{100 * c / max(1, n_cls['full']):.1f}%",
                 va="center", fontsize=7, color="#555")
-    ax.plot([], [], color="black", lw=1.3, label="Expected if the three types\nwere spatially independent")
-    ax.legend(loc="upper right", fontsize=6, frameon=False)
     ax.set_yticks(y); ax.set_yticklabels(REGIME_ORDER, fontsize=7); ax.set_xlabel("Number of PSU")
-    ax.set_xlim(0, max(1, cnt.max(), exp_cnt.max()) * 1.22)
+    ax.set_xlim(0, max(1, cnt.max()) * 1.2)
     ax.set_title(f"Regimes, {YEARS[0]}–{YEARS[-1]}\n(n = {n_cls['full']:,} classifiable; "
                  f"{pct_insuf['full']:.1f}% insufficient data,\nincl. {pct_inel['full']:.1f}% "
                  f"ineligible PSU)", fontsize=9, fontweight="bold")
