@@ -1,0 +1,154 @@
+         region     decade  n_cooccur_days  n_hw_with_cooc  n_units  cooccur_days_per_unit_year
+0       Central  1985-1994            1931            1768     5709                      0.0338
+1       Central  1995-2004            1956            1827     5709                      0.0343
+2       Central  2005-2014            3520            3309     5709                      0.0617
+3       Central  2015-2024            8388            7609     5709                      0.1469
+4       Eastern  1985-1994            4044            3951    21634                      0.0187
+5       Eastern  1995-2004           10721           10187    21634                      0.0496
+6       Eastern  2005-2014           14406           13691    21634                      0.0666
+7       Eastern  2015-2024           31603           30031    21634                      0.1461
+8      Southern  1985-1994            1165            1164     3777                      0.0308
+9      Southern  1995-2004            1894            1870     3777                      0.0501
+10     Southern  2005-2014            2872            2840     3777                      0.0760
+11     Southern  2015-2024            3810            3756     3777                      0.1009
+12      Western  1985-1994             318             318    22662                      0.0014
+13      Western  1995-2004             496             496    22662                      0.0022
+14      Western  2005-2014            1186            1068    22662                      0.0052
+15      Western  2015-2024            2094            1969    22662                      0.0092
+16  Continental  1985-1994            7458            7201    53782                      0.0139
+17  Continental  1995-2004           15067           14380    53782                      0.0280
+18  Continental  2005-2014           21984           20908    53782                      0.0409
+19  Continental  2015-2024           45895           43365    53782                      0.0853
+         region     decade     n_hw  precursor_rate  trigger_rate  rate_diff  n_before  n_after  count_ratio
+0       Central  1985-1994   145100           0.131         0.222      0.091     15186    32556        2.144
+1       Central  1995-2004   198117           0.114         0.154      0.041     17207    24393        1.418
+2       Central  2005-2014   293000           0.142         0.183      0.041     24341    38982        1.601
+3       Central  2015-2024   399898           0.188         0.229      0.041     41281    57127        1.384
+4       Eastern  1985-1994   668496           0.103         0.295      0.192     55031   219349        3.986
+5       Eastern  1995-2004   918638           0.095         0.266      0.171     58245   231861        3.981
+6       Eastern  2005-2014  1188661           0.130         0.293      0.164     91313   302390        3.312
+7       Eastern  2015-2024  1489111           0.165         0.318      0.154    154396   437741        2.835
+8      Southern  1985-1994   135406           0.165         0.305      0.140     12560    38066        3.031
+9      Southern  1995-2004   152921           0.168         0.325      0.156     14957    43649        2.918
+10     Southern  2005-2014   203251           0.197         0.335      0.139     17126    50112        2.926
+11     Southern  2015-2024   285516           0.145         0.236      0.091     16166    53195        3.291
+12      Western  1985-1994   845522           0.006         0.049      0.043      2710    30334       11.193
+13      Western  1995-2004   847518           0.008         0.053      0.045      2732    32694       11.967
+14      Western  2005-2014  1141620           0.016         0.052      0.035      8169    42843        5.245
+15      Western  2015-2024  1588467           0.018         0.060      0.041     14389    61749        4.291
+16  Continental  1985-1994  1794524           0.064         0.174      0.110     85487   320305        3.747
+17  Continental  1995-2004  2117194           0.067         0.175      0.107     93141   332597        3.571
+18  Continental  2005-2014  2826532           0.090         0.187      0.097    140949   434327        3.081
+19  Continental  2015-2024  3762992           0.104         0.194      0.090    226232   609812        2.696
+         region     decade     n_hw  pct_drought_a  pct_drought_b  pct_drought_lag0_a  dur_drought  dur_nodrought  diff_duration  peak_drought  peak_nodrought  diff_peak
+0       Central  1985-1994   146504          13.23          12.82               20.15         5.04           5.33          -0.28     33.919998       35.169998      -1.25
+1       Central  1995-2004   198884          17.89          17.81               25.60         5.92           5.85           0.06     34.099998       34.740002      -0.64
+2       Central  2005-2014   294188          25.12          24.79               27.52         6.22           5.90           0.32     35.680000       34.040001       1.64
+3       Central  2015-2024   406034          31.22          29.23               35.33         6.44           6.22           0.23     34.189999       34.400002      -0.21
+4       Eastern  1985-1994   674107          16.97          16.77               24.60         5.14           5.32          -0.18     31.770000       32.029999      -0.26
+5       Eastern  1995-2004   918638          20.02          19.94               27.24         6.59           5.61           0.99     31.670000       31.709999      -0.04
+6       Eastern  2005-2014  1188661          27.97          27.67               32.17         6.01           5.78           0.23     32.259998       31.570000       0.69
+7       Eastern  2015-2024  1510736          25.49          24.68               31.17         6.63           6.18           0.46     32.389999       31.250000       1.14
+8      Southern  1985-1994   141637          23.97          24.00               36.54         5.25           4.97           0.28     31.410000       32.340000      -0.93
+9      Southern  1995-2004   152921          14.18          15.26               23.23         5.07           5.03           0.05     31.790001       32.310001      -0.52
+10     Southern  2005-2014   203251          34.89          32.54               38.82         5.33           4.80           0.53     33.380001       31.790001       1.60
+11     Southern  2015-2024   292559          59.82          55.74               64.02         6.51           5.28           1.23     34.320000       31.219999       3.10
+12      Western  1985-1994   846121          13.26          14.47               22.93         5.89           5.49           0.40     36.290001       38.689999      -2.40
+13      Western  1995-2004   847518          16.79          16.51               21.03         5.96           5.79           0.17     37.580002       38.139999      -0.56
+14      Western  2005-2014  1141620          29.06          27.67               28.55         6.51           5.77           0.73     39.599998       37.349998       2.25
+15      Western  2015-2024  1609822          40.16          40.54               40.75         7.24           7.14           0.10     38.689999       36.730000       1.95
+16  Continental  1985-1994  1808369          15.47          15.89               24.36         5.45           5.38           0.07     33.689999       35.500000      -1.82
+17  Continental  1995-2004  2117961          18.10          17.94               24.31         6.21           5.66           0.55     34.090000       34.660000      -0.56
+18  Continental  2005-2014  2827720          28.61          27.70               30.71         6.17           5.73           0.45     35.680000       34.169998       1.51
+19  Continental  2015-2024  3819151          34.91          34.03               38.16         6.89           6.51           0.38     35.869999       33.730000       2.14
+      axis        scope        scale                 metric  slope_per_decade  ci_low_per_decade  ci_high_per_decade   mk_z   mk_p  mk_significant_fdr  n_years  inference_ok
+0    axis1  continental  Continental  cooccur_days_per_unit             0.015              0.011               0.020  5.837  0.000                True       40          True
+1    axis1  continental  Continental     pct_hw_with_cooc_b             0.102              0.042               0.189  2.924  0.003                True       40          True
+2    axis1  continental  Continental         n_cooccur_days           816.042            577.143            1090.556  5.837  0.000                True       40          True
+3    axis1  continental  Continental     pct_hw_with_cooc_a             0.161              0.075               0.233  3.856  0.000                True       40          True
+4    axis1       region      Central  cooccur_days_per_unit             0.021              0.004               0.041  2.929  0.003                True       40          True
+5    axis1       region      Central     pct_hw_with_cooc_b             0.108             -0.041               0.279  1.456  0.145               False       40          True
+6    axis1       region      Central         n_cooccur_days           119.815             22.846             230.714  2.929  0.003                True       40          True
+7    axis1       region      Central     pct_hw_with_cooc_a             0.150             -0.120               0.435  1.526  0.127               False       40          True
+8    axis1       region      Eastern  cooccur_days_per_unit             0.026              0.020               0.032  5.721  0.000                True       40          True
+9    axis1       region      Eastern     pct_hw_with_cooc_b             0.201              0.024               0.300  2.691  0.007                True       40          True
+10   axis1       region      Eastern         n_cooccur_days           563.857            423.571             690.652  5.721  0.000                True       40          True
+11   axis1       region      Eastern     pct_hw_with_cooc_a             0.287              0.138               0.412  4.090  0.000                True       40          True
+12   axis1       region     Southern  cooccur_days_per_unit             0.014              0.003               0.044  2.310  0.021                True       40          True
+13   axis1       region     Southern     pct_hw_with_cooc_b             0.131             -0.224               0.596  0.874  0.382               False       40          True
+14   axis1       region     Southern         n_cooccur_days            51.623             10.000             169.000  2.310  0.021                True       40          True
+15   axis1       region     Southern     pct_hw_with_cooc_a             0.050             -0.384               0.621  0.300  0.764               False       40          True
+16   axis1       region      Western  cooccur_days_per_unit             0.001             -0.000               0.001  1.807  0.071               False       40          True
+17   axis1       region      Western     pct_hw_with_cooc_b             0.002             -0.005               0.016  0.501  0.616               False       40          True
+18   axis1       region      Western         n_cooccur_days            15.345             -2.792              32.857  1.807  0.071               False       40          True
+19   axis1       region      Western     pct_hw_with_cooc_a             0.007             -0.004               0.029  1.177  0.239               False       40          True
+156  axis2  continental  Continental          count_ratio_a            -0.372             -0.666              -0.049 -3.297  0.001                True       40          True
+157  axis2  continental  Continental       precursor_rate_b             0.006             -0.004               0.018  1.969  0.049                True       40          True
+158  axis2  continental  Continental         trigger_rate_b            -0.003             -0.010               0.005 -0.687  0.492               False       40          True
+159  axis2  continental  Continental            rate_diff_b            -0.008             -0.016              -0.004 -2.645  0.008                True       40          True
+160  axis2  continental  Continental       precursor_rate_a             0.013              0.009               0.022  3.833  0.000                True       40          True
+161  axis2  continental  Continental         trigger_rate_a             0.008              0.000               0.020  1.713  0.087               False       40          True
+162  axis2  continental  Continental            rate_diff_a            -0.006             -0.013              -0.000 -2.155  0.031                True       40          True
+163  axis2       region      Central          count_ratio_a            -0.195             -0.808               0.064 -2.109  0.035                True       40          True
+164  axis2       region      Central       precursor_rate_b             0.003             -0.009               0.024  0.594  0.552               False       40          True
+165  axis2       region      Central         trigger_rate_b            -0.010             -0.021               0.013 -1.689  0.091               False       40          True
+166  axis2       region      Central            rate_diff_b            -0.014             -0.033              -0.002 -2.645  0.008                True       40          True
+167  axis2       region      Central       precursor_rate_a             0.019              0.003               0.043  2.528  0.011                True       40          True
+168  axis2       region      Central         trigger_rate_a             0.002             -0.026               0.035  0.268  0.789               False       40          True
+169  axis2       region      Central            rate_diff_a            -0.014             -0.031              -0.001 -2.391  0.017                True       40          True
+170  axis2       region      Eastern          count_ratio_a            -0.476             -0.958               0.260 -2.319  0.020                True       40          True
+171  axis2       region      Eastern       precursor_rate_b             0.012             -0.009               0.031  2.155  0.031                True       40          True
+172  axis2       region      Eastern         trigger_rate_b            -0.001             -0.019               0.016 -0.175  0.861               False       40          True
+173  axis2       region      Eastern            rate_diff_b            -0.010             -0.027               0.001 -1.829  0.067               False       40          True
+174  axis2       region      Eastern       precursor_rate_a             0.020              0.003               0.039  3.297  0.001                True       40          True
+175  axis2       region      Eastern         trigger_rate_a             0.010             -0.003               0.024  1.153  0.249               False       40          True
+176  axis2       region      Eastern            rate_diff_a            -0.010             -0.020               0.001 -1.596  0.110               False       40          True
+177  axis2       region     Southern          count_ratio_a             0.233             -0.136               0.668  1.200  0.230               False       40          True
+178  axis2       region     Southern       precursor_rate_b            -0.010             -0.032               0.033 -0.757  0.449               False       40          True
+179  axis2       region     Southern         trigger_rate_b            -0.025             -0.078               0.006 -1.363  0.173               False       40          True
+180  axis2       region     Southern            rate_diff_b            -0.013             -0.043               0.002 -0.827  0.408               False       40          True
+181  axis2       region     Southern       precursor_rate_a            -0.006             -0.026               0.033 -0.524  0.600               False       40          True
+182  axis2       region     Southern         trigger_rate_a            -0.031             -0.066               0.009 -1.689  0.091               False       40          True
+183  axis2       region     Southern            rate_diff_a            -0.014             -0.037               0.009 -1.107  0.268               False       40          True
+184  axis2       region      Western          count_ratio_a            -2.779             -7.501              -1.356 -2.598  0.009                True       40          True
+185  axis2       region      Western       precursor_rate_b             0.002              0.001               0.004  2.482  0.013                True       40          True
+186  axis2       region      Western         trigger_rate_b            -0.002             -0.006               0.003 -0.548  0.584               False       40          True
+187  axis2       region      Western            rate_diff_b            -0.003             -0.010               0.001 -1.317  0.188               False       40          True
+188  axis2       region      Western       precursor_rate_a             0.003              0.001               0.005  2.482  0.013                True       40          True
+189  axis2       region      Western         trigger_rate_a             0.000             -0.005               0.007  0.058  0.954               False       40          True
+190  axis2       region      Western            rate_diff_a            -0.002             -0.007               0.003 -0.827  0.408               False       40          True
+429  axis3  continental  Continental          pct_drought_b             6.502              3.488               9.535  5.301  0.000                True       40          True
+430  axis3  continental  Continental      pct_drought_spi_b             0.441             -1.488               2.008  0.478  0.633               False       40          True
+431  axis3  continental  Continental          pct_drought_a             6.486              3.815               9.453  4.835  0.000                True       40          True
+432  axis3  continental  Continental     pct_drought_lag0_b             5.350              2.036               7.701  4.206  0.000                True       40          True
+433  axis3  continental  Continental     pct_drought_lag0_a             4.827              1.379               6.942  3.693  0.000                True       40          True
+434  axis3  continental  Continental          diff_duration             0.049             -0.293               0.328  0.361  0.718               False       40          True
+435  axis3  continental  Continental              diff_peak             1.453              0.851               1.920  4.625  0.000                True       40          True
+436  axis3       region      Central          pct_drought_b             4.500             -0.962               6.672  3.460  0.001                True       40          True
+437  axis3       region      Central      pct_drought_spi_b             0.799             -2.654               1.641  0.781  0.435               False       40          True
+438  axis3       region      Central          pct_drought_a             4.369             -1.339               6.483  3.018  0.003                True       40          True
+439  axis3       region      Central     pct_drought_lag0_b             4.210              0.350               5.638  3.134  0.002                True       40          True
+440  axis3       region      Central     pct_drought_lag0_a             4.119             -0.524               5.881  2.855  0.004                True       40          True
+441  axis3       region      Central          diff_duration             0.153             -0.144               0.429  1.386  0.166               False       40          True
+442  axis3       region      Central              diff_peak             0.433              0.116               1.194  2.598  0.009                True       40          True
+443  axis3       region      Eastern          pct_drought_b             3.389             -0.908               7.021  2.552  0.011                True       40          True
+444  axis3       region      Eastern      pct_drought_spi_b            -0.433             -3.042               1.793 -0.618  0.537               False       40          True
+445  axis3       region      Eastern          pct_drought_a             3.223             -2.256               7.194  1.876  0.061               False       40          True
+446  axis3       region      Eastern     pct_drought_lag0_b             3.085             -2.200               6.387  1.876  0.061               False       40          True
+447  axis3       region      Eastern     pct_drought_lag0_a             2.390             -3.275               6.325  1.206  0.228               False       40          True
+448  axis3       region      Eastern          diff_duration             0.125             -0.284               0.357  1.153  0.249               False       40          True
+449  axis3       region      Eastern              diff_peak             0.382              0.126               0.963  2.016  0.044                True       40          True
+450  axis3       region     Southern          pct_drought_b            10.876              3.949              27.201  2.346  0.019                True       40          True
+451  axis3       region     Southern      pct_drought_spi_b             1.548             -4.789              10.405  0.651  0.515               False       40          True
+452  axis3       region     Southern          pct_drought_a            12.556              1.477              27.115  2.575  0.010                True       40          True
+453  axis3       region     Southern     pct_drought_lag0_b            10.042             -0.593              26.468  2.994  0.003                True       40          True
+454  axis3       region     Southern     pct_drought_lag0_a            11.575              0.771              25.059  3.205  0.001                True       40          True
+455  axis3       region     Southern          diff_duration             0.479              0.038               1.026  3.390  0.001                True       40          True
+456  axis3       region     Southern              diff_peak             1.318              0.255               1.994  3.437  0.001                True       40          True
+457  axis3       region      Western          pct_drought_b             8.290              1.244              12.979  4.183  0.000                True       40          True
+458  axis3       region      Western      pct_drought_spi_b             0.431             -3.078               3.729  0.384  0.701               False       40          True
+459  axis3       region      Western          pct_drought_a             8.446             -0.412              13.962  4.066  0.000                True       40          True
+460  axis3       region      Western     pct_drought_lag0_b             6.803              0.093              12.258  3.390  0.001                True       40          True
+461  axis3       region      Western     pct_drought_lag0_a             6.623             -0.106              12.262  3.181  0.001                True       40          True
+462  axis3       region      Western          diff_duration            -0.148             -0.652               0.262 -0.781  0.435               False       40          True
+463  axis3       region      Western              diff_peak             1.591              0.859               2.303  4.346  0.000                True       40          True
