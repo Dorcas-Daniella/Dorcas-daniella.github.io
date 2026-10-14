@@ -3,7 +3,7 @@
 # (or at least after cells 2, 4 and the figure section 16). It replaces the helpers that still
 # showed Mann–Kendall stars / FDR categories and regenerates only the affected figures:
 #   Fig 2               fig02_temporal_trends          slopes + 95% CI, no "*"
-#   Extended Data Fig 3 figS_axis3_lag_index           slopes + 95% CI, no "*"
+#   Extended Data Fig 3 -> separate cell new_cell_ed_fig3.py (redesigned)
 #   Supplementary Fig 1 figS02_geo_axis1 (+ figS03/04) background = sign of slope and 95% CI
 #   tableS01 (figure + CSV)                            trends with 95% CI instead of "*"
 # The MK p-values are still computed in the trends step but are no longer shown anywhere.
@@ -70,35 +70,6 @@ def fig02_trends(D, FIG):
              "when the annual series has internal gaps).",
              fontsize=6, color="#888", style="italic")
     savefig(fig, FIG, "fig02_temporal_trends")
-
-
-def figS_axis3_lag_index(D, FIG):
-    """SI figure: annual % of HW with drought for the three Axis-III variants,
-    per scale, with the Theil–Sen slope per decade of each (step-14 trends)."""
-    tr = trends(D)
-    fig, axs = plt.subplots(1, len(SCALES), figsize=(16, 3.8), facecolor="white", sharey=True)
-    for j, sc in enumerate(SCALES):
-        ax = axs[j]; lines = []
-        for k, (metric, lab, col, ls) in enumerate(AXIS3_VARIANTS):
-            y = series_by_scale(D, "axis3", metric)[sc]; m = np.isfinite(y)
-            ax.scatter(YEARS[m], y[m], s=4, color=col, alpha=.35, edgecolors="none", zorder=3)
-            ax.plot(YEARS, smooth(y), color=col, lw=1.4, ls=ls, zorder=4, label=lab)
-            txt = slope_text(tr, "axis3", "continental" if sc == "Continental" else "region", sc,
-                             metric, "{:+.2f}").replace("\n", " ")
-            lines.append((txt or "n/a", col))
-        for k, (txt, col) in enumerate(lines):
-            ax.text(.03, .97 - k * .075, txt, transform=ax.transAxes, fontsize=5.5, color=col,
-                    ha="left", va="top")
-        ax.set_title(sc, fontsize=9, fontweight="bold", color=REGION_COLORS[sc])
-        ax.set_xlim(YEARS[0] - 1, YEARS[-1] + 1); ax.yaxis.grid(True, lw=.2, color="#ddd", zorder=0)
-        if j == 0:
-            ax.set_ylabel(f"% of HW with antecedent drought (index < {cfg.drought_threshold})", fontsize=7)
-    axs[-1].legend(fontsize=6, loc="lower right", frameon=False)
-    fig.text(.01, -.03, "Per-PSU mean of the % of HW with drought (pct_*_b). Slopes: Theil–Sen per decade, "
-             "95% moving-block-bootstrap CI. Lag 0 uses the onset month, "
-             "whose SPEI includes the heatwave's own PET; SPI is precipitation-only.",
-             fontsize=6, color="#888", style="italic")
-    savefig(fig, FIG, "figS_axis3_lag_index")
 
 
 def figS_geo_single(D, FIG, axis, metric, title, filename, ylim=None, clip=None):
@@ -183,7 +154,6 @@ def tableS01(D, FIG):
 for _mode, _D in MODE_DIRS.items():
     _F = FIG_DIRS[_mode]
     fig02_trends(_D, _F)
-    figS_axis3_lag_index(_D, _F)
     figS_geo_single(_D, _F, "axis1", "cooccur_days_per_unit",
                     "Axis I: HW–EPE co-occurrence days per PSU per year, by country", "figS02_geo_axis1")
     figS_geo_single(_D, _F, "axis2", "count_ratio_a",
