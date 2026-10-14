@@ -50,7 +50,7 @@ Le texte, la structure, les figures et l'interprétation d'ensemble sont conserv
 | Discussion, Clausius–Clapeyron | « physically consistent with the release of this moisture » | asymétrie en partie saisonnière, déficit avant, conditions anticycloniques ; Liu et al. 2026 | Contredit par le test null |
 | Discussion, conclusion | « gain physical coherence, evolving… to distinct regional-scale regimes » | « net shift from locations without any prominent hazard towards regimes dominated by drought-heat coupling and heat-precipitation co-occurrence » | Les régimes changent localement (22 % inchangés, 20 % attendus par hasard) |
 | Limites | — | + saisonnalité du seuil annuel ; + SPEI après 2014 ; + décalage d'un jour ERA5 / CHIRPS | Transparence |
-| Méthodes | Paragraphe « Sensitivity analyses » regroupant tous les tests ; CHIRPS 0,25° ; SPEI « generalized logistic » ; Axe II avec doublons ; mois du début ; pas de test ; classification des pays fort / modéré / faible | CHIRPS 0,05° ; log-logistique (xclim) ; attribution unique ; test null ; mois précédent ; IC par bootstrap en blocs + Mann-Kendall ; règles de la Fig. 6 | Nouveau code |
+| Méthodes | Paragraphe « Sensitivity analyses » regroupant tous les tests ; CHIRPS 0,25° ; SPEI « generalized logistic » ; Axe II avec doublons ; mois du début ; pas de test ; classification des pays fort / modéré / faible | CHIRPS 0,25° ; log-logistique (xclim) ; attribution unique ; test null ; mois précédent ; IC par bootstrap en blocs + Mann-Kendall ; règles de la Fig. 6 | Nouveau code |
 
 ## 5. À faire de votre côté
 
