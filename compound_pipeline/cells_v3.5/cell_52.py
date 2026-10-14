@@ -104,12 +104,12 @@ def fig_sensitivity(D, FIG):
     ax = fig.add_subplot(gs[0, 3:6]); c = ws[ws["scale"] == "Continental"].set_index("window_days").reindex(Ws)
     ax.plot(Ws, c["count_ratio"], "o-", color="#2c3e50", lw=1.8, ms=6, label="count ratio (primary)")
     for W, r in zip(Ws, c["count_ratio"]):
-        ax.annotate(f"{r:.2f}", (W, r), xytext=(0, -14), textcoords="offset points", ha="center", fontsize=7, color="#2c3e50")
+        ax.annotate(f"{r:.2f}", (W, r), xytext=(0, 9), textcoords="offset points", ha="center", fontsize=8, color="#2c3e50")
     ax2 = ax.twinx(); ax2.plot(Ws, c["rate_diff"], "s--", color="#d73027", lw=1.2, ms=5, label="trigger − precursor (secondary)")
     ax2.set_ylabel("Trigger − precursor fraction", color="#d73027"); ax2.spines["right"].set_visible(True)
     ax.axvline(cfg.axis2_window_days, color="#e74c3c", ls=":", lw=.8); ax.axhline(1, color="grey", ls="--", lw=.5)
     ax.set_xticks(Ws); ax.set_xticklabels([f"±{W}" for W in Ws]); ax.set_xlabel("Window W (days)"); ax.set_ylabel("EPE after / before HW")
-    h1, l1 = ax.get_legend_handles_labels(); h2, l2 = ax2.get_legend_handles_labels(); ax.legend(h1 + h2, l1 + l2, fontsize=7, loc="upper right", frameon=False)
+    h1, l1 = ax.get_legend_handles_labels(); h2, l2 = ax2.get_legend_handles_labels(); ax.legend(h1 + h2, l1 + l2, fontsize=8, loc="lower right", frameon=True, framealpha=.95, edgecolor="none")
     ax.set_title("Continental Axis II metrics by window size", fontsize=9, fontweight="bold"); panel_label(ax, "b", x=-0.07)
     # (c) SPEI threshold: % HW preconditioned and duration ratio (primary lag)
     s = a3[a3["has_spei"]]
@@ -140,7 +140,6 @@ def fig_sensitivity(D, FIG):
         ax.bar(x + k * w, v, w, color=color, label=lab, alpha=.85, edgecolor="white", lw=.3)
     ax.set_xticks(x + (len(variants) - 1) * w / 2); ax.set_xticklabels(SCALES); ax.set_ylabel("% HW with antecedent drought")
     ax.set_title("Axis III: lag and index sensitivity", fontsize=9, fontweight="bold"); ax.legend(fontsize=6.5); panel_label(ax, "e", x=-0.1)
-    fig.suptitle("Sensitivity analyses — Axis II window, Axis III threshold / lag / index", fontsize=11, fontweight="bold", y=.995)
     savefig(fig, FIG, "figS_sensitivity")
     # threshold x trend table (Theil-Sen of the annual continental %), for the text
     rows = []

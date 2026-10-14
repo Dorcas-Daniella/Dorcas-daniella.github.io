@@ -54,7 +54,7 @@ With a calendar-day heatwave threshold, which defines heatwaves relative to the 
 
 **Fig. 5 | Drought amplification of heatwave duration and intensity.** **a**, Heatwave duration and **b**, peak intensity for heatwaves preceded versus not preceded by drought (SPEI-3 < −1 in the month before onset). **c**, Percentage of heatwaves preceded by drought by region and decade.
 
-**Fig. 6 | Geographical classification of compound-event regimes across sub-Saharan Africa.** **a**, Distribution of the 51,514 classifiable survey clusters across eight regimes defined by which event types are locally prominent (above the 75th percentile; Methods). **b**, Spatial distribution; dark grey, insufficient data. **c**, Regime shares by decade. **d**, **e**, Regimes in 1985-1994 (**d**) and 2015-2024 (**e**). **f**, Transitions between these decades (% of 42,234 clusters; outlined cells, unchanged regime). Categories are descriptive and do not imply physical coupling between event types.
+**Fig. 6 | Geographical classification of compound-event regimes across sub-Saharan Africa.** **a**, Share (%) of the 51,514 classifiable survey clusters in each of eight regimes defined by which event types are locally prominent (above the 75th percentile; Methods). **b**, Spatial distribution; dark grey, insufficient data. **c**, Regime shares by decade. **d**, **e**, Regimes in 1985-1994 (**d**) and 2015-2024 (**e**). **f**, Transitions between these decades (% of the 42,234 clusters classifiable in both; outlined cells, unchanged regime). HP, heat-precipitation events; PH, post-heatwave precipitation excess; DH, drought-heat coupling. Categories are descriptive and do not imply physical coupling between event types.
 
 # Discussion
 

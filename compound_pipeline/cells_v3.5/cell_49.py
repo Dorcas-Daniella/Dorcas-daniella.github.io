@@ -52,6 +52,10 @@ def _savefig_safe(fig, FIG, name):
     log.info("figure -> %s.png/.pdf", FIG / name)
 
 
+REGIME_CODES = {"All three": "HP+PH+DH", "Post-HW precip. + Drought-heat": "PH+DH",
+                "Heat-precip. + Post-HW precip.": "HP+PH", "Heat-precip. + Drought-heat": "HP+DH",
+                "Post-HW precip. only": "PH", "Drought-heat only": "DH", "Heat-precip. only": "HP",
+                "None prominent": "None"}
 INSUFFICIENT = "Insufficient data"
 REGIME_COLORS[INSUFFICIENT] = "#7f7f7f"     # distinct mid grey (not 'None prominent')
 FIG6_COLS = {"axis1": "cooccur_days_per_year", "axis2": "count_ratio_fig6",
@@ -271,72 +275,70 @@ def fig06_regimes(D, FIG, q, tag, min_support=None):
     log.info("Fig 6%s: %d PSU classifiable in %s and %s; same regime %.1f%% (%.1f%% expected "
              "by chance)", tag, len(both), FIRST_DEC, LAST_DEC, same_pct, chance_pct)
 
-    fig = plt.figure(figsize=(15, 12.5), facecolor="white")
-    gs = GridSpec(2, 3, figure=fig, width_ratios=[1, 1, 1], hspace=0.5, wspace=0.3,
-                  top=0.86, bottom=0.08, left=0.13, right=0.90)
-    # (a) counts and shares, pooled (shares among classifiable PSU)
+    # Only the essentials on the figure; definitions, n and thresholds go in the legend.
+    code = REGIME_CODES
+    dec = lambda d: d.replace("-", "–")
+    fig = plt.figure(figsize=(14, 9.4), facecolor="white")
+    gs = GridSpec(2, 3, figure=fig, width_ratios=[1, 1, 1], hspace=0.22, wspace=0.26,
+                  top=0.96, bottom=0.17, left=0.17, right=0.93)
+    # (a) shares of the eight regimes, 1985-2024 (among classifiable PSU)
     ax = fig.add_subplot(gs[0, 0])
     cnt = counts["full"].reindex(REGIME_ORDER)
+    pct = 100 * cnt / max(1, n_cls["full"])
     y = np.arange(len(REGIME_ORDER))[::-1]
-    ax.barh(y, cnt.to_numpy(), color=[REGIME_COLORS[r] for r in REGIME_ORDER], height=.65)
-    for yi, c in zip(y, cnt.to_numpy()):
-        ax.text(c + max(1, cnt.max()) * .01, yi, f"{100 * c / max(1, n_cls['full']):.1f}%",
-                va="center", fontsize=7, color="#555")
-    ax.set_yticks(y); ax.set_yticklabels(REGIME_ORDER, fontsize=7); ax.set_xlabel("Number of PSU")
-    ax.set_xlim(0, max(1, cnt.max()) * 1.2)
-    ax.set_title(f"Regimes, {YEARS[0]}–{YEARS[-1]}\n(n = {n_cls['full']:,} classifiable; "
-                 f"{pct_insuf['full']:.1f}% insufficient data,\nincl. {pct_inel['full']:.1f}% "
-                 f"ineligible PSU)", fontsize=9, fontweight="bold")
-    panel_label(ax, "a", x=-0.55)
+    ax.barh(y, pct.to_numpy(), color=[REGIME_COLORS[r] for r in REGIME_ORDER], height=.7)
+    for yi, v in zip(y, pct.to_numpy()):
+        ax.text(v + .6, yi, f"{v:.1f}", va="center", fontsize=9, color="#333")
+    ax.set_yticks(y); ax.set_yticklabels(REGIME_ORDER, fontsize=9.5)
+    ax.set_xlabel("% of PSUs", fontsize=10); ax.tick_params(axis="x", labelsize=9)
+    ax.set_xlim(0, max(1, pct.max()) * 1.18)
+    ax.set_title(f"{YEARS[0]}–{YEARS[-1]}", fontsize=11, fontweight="bold")
+    panel_label(ax, "a", x=-0.62, y=1.02, size=13)
     # (b) pooled map
     ax = _regime_map_ax(fig, gs[0, 1])
-    _regime_map(ax, pooled, f"Regimes, {YEARS[0]}–{YEARS[-1]}"); panel_label(ax, "b", x=0)
-    # legend below the map, outside the data area
-    ax.legend(handles=[mpatches.Patch(facecolor=REGIME_COLORS[r], edgecolor="none", label=r)
-                       for r in REGIME_ORDER + [INSUFFICIENT]],
-              loc="upper center", bbox_to_anchor=(0.5, -0.02), ncol=2, fontsize=6,
-              frameon=False, handlelength=1.0, handleheight=0.8, columnspacing=1.0, labelspacing=0.3)
-    # (c) shares by decade among classifiable PSU (stacked), n and insufficient share on top
+    _regime_map(ax, pooled, f"{YEARS[0]}–{YEARS[-1]}")
+    ax.title.set_fontsize(11); panel_label(ax, "b", x=-0.02, y=1.02, size=13)
+    # (c) shares by decade (stacked, % of classifiable PSU)
     ax = fig.add_subplot(gs[0, 2])
     bottom = np.zeros(len(DECADES))
     for r in REGIME_ORDER:
         v = shares.loc[r].to_numpy()
-        ax.bar(range(len(DECADES)), v, bottom=bottom, color=REGIME_COLORS[r], width=.7, label=r)
+        ax.bar(range(len(DECADES)), v, bottom=bottom, color=REGIME_COLORS[r], width=.72)
         bottom += v
-    for j, d in enumerate(DECADES):
-        ax.text(j, 101, f"n={n_cls[d]:,}\ninsuff. {pct_insuf[d]:.1f}%", ha="center",
-                va="bottom", fontsize=6, color="#555")
-    ax.set_xticks(range(len(DECADES))); ax.set_xticklabels([d.replace("-", "–") for d in DECADES])
-    ax.set_ylabel("% of classifiable PSU"); ax.set_ylim(0, 112)
-    ax.set_title("Regime shares by decade (classifiable PSU)", fontsize=9, fontweight="bold"); panel_label(ax, "c")
-    # (d, e) first vs last decade maps
+    ax.set_xticks(range(len(DECADES))); ax.set_xticklabels([dec(d) for d in DECADES], fontsize=9)
+    ax.set_ylabel("% of PSUs", fontsize=10); ax.set_ylim(0, 100); ax.tick_params(axis="y", labelsize=9)
+    ax.set_title("By decade", fontsize=11, fontweight="bold"); panel_label(ax, "c", x=-0.12, y=1.02, size=13)
+    # (d, e) first and last decades
     for k, d in enumerate((FIRST_DEC, LAST_DEC)):
         ax = _regime_map_ax(fig, gs[1, k])
-        _regime_map(ax, by[d], d.replace("-", "–")); panel_label(ax, "de"[k], x=0)
-    # (f) transition matrix first -> last, PSU classifiable in both decades
+        _regime_map(ax, by[d], dec(d))
+        ax.title.set_fontsize(11); panel_label(ax, "de"[k], x=-0.02, y=1.02, size=13)
+    # (f) transitions first -> last decade (% of PSU classifiable in both)
     ax = fig.add_subplot(gs[1, 2])
     P = trans.to_numpy(float); P = 100 * P / max(1, P.sum())
-    im = ax.imshow(P, cmap="Blues", vmin=0, vmax=max(1, P.max()))
-    ax.set_xticks(range(len(REGIME_ORDER))); ax.set_xticklabels(REGIME_ORDER, rotation=60, ha="right", fontsize=6)
-    ax.set_yticks(range(len(REGIME_ORDER))); ax.set_yticklabels(REGIME_ORDER, fontsize=6)
-    ax.yaxis.tick_right(); ax.yaxis.set_label_position("right")
-    ax.set_xlabel(f"Regime in {LAST_DEC.replace('-', '–')}"); ax.set_ylabel(f"Regime in {FIRST_DEC.replace('-', '–')}")
+    ax.imshow(P, cmap="Blues", vmin=0, vmax=max(1, P.max()))
+    labs = [code[r] for r in REGIME_ORDER]
+    ax.set_xticks(range(len(labs))); ax.set_xticklabels(labs, rotation=45, ha="right", fontsize=8.5)
+    ax.set_yticks(range(len(labs))); ax.set_yticklabels(labs, fontsize=8.5)
+    ax.yaxis.tick_right(); ax.yaxis.set_label_position("right")   # keeps panel e free
+    ax.set_xlabel(dec(LAST_DEC), fontsize=10); ax.set_ylabel(dec(FIRST_DEC), fontsize=10)
     for i in range(P.shape[0]):
         for j in range(P.shape[1]):
-            if P[i, j] >= 0.5:
-                ax.text(j, i, f"{P[i, j]:.1f}", ha="center", va="center", fontsize=6,
-                        color="white" if P[i, j] > .6 * P.max() else "#333")
+            if P[i, j] >= 1.0:
+                ax.text(j, i, f"{P[i, j]:.0f}", ha="center", va="center", fontsize=8,
+                        color="white" if P[i, j] > .55 * P.max() else "#333")
     for i in range(P.shape[0]):                       # outline the diagonal (same regime)
-        ax.add_patch(mpatches.Rectangle((i - .5, i - .5), 1, 1, fill=False, ec="#333", lw=.6))
-    ax.set_title(f"Transitions {FIRST_DEC.replace('-', '–')} → {LAST_DEC.replace('-', '–')}, "
-                 f"% of n = {len(both):,} PSU\nclassifiable in both decades; same regime "
-                 f"{same_pct:.1f}% (chance {chance_pct:.1f}%)", fontsize=9, fontweight="bold")
-    panel_label(ax, "f", x=-0.08, y=1.12)
-    prov = "  [PROVISIONAL minimum supports — test only]" if min_support is not None else ""
-    fig.suptitle(f"Compound-event regimes — prominent = strictly above the order statistic "
-                 f"$x_{{(\\lceil {q:.2f}\\,n \\rceil)}}$ of the classifiable PSU, {YEARS[0]}–{YEARS[-1]}\n"
-                 f"pooled thresholds applied to every decade · minimum support: Axis II = {min2} EPE, "
-                 f"Axis III = {min3} HW{prov}", fontsize=10, fontweight="bold", y=.975)
+        ax.add_patch(mpatches.Rectangle((i - .5, i - .5), 1, 1, fill=False, ec="#333", lw=.7))
+    ax.set_title("Transitions", fontsize=11, fontweight="bold"); panel_label(ax, "f", x=-0.08, y=1.02, size=13)
+    # one shared legend under the figure
+    fig.legend(handles=[mpatches.Patch(facecolor=REGIME_COLORS[r], edgecolor="none",
+                                       label=r if r in (INSUFFICIENT, "None prominent") else f"{r} ({code[r]})")
+                        for r in REGIME_ORDER + [INSUFFICIENT]],
+               loc="lower center", bbox_to_anchor=(0.5, 0.0), ncol=5, fontsize=9.5, frameon=False,
+               handlelength=1.2, handleheight=1.0, columnspacing=1.6)
+    if min_support is not None:
+        fig.text(0.99, 0.995, "PROVISIONAL minimum supports — test only", ha="right", va="top",
+                 fontsize=8, color="#c0392b")
     _savefig_safe(fig, FIG, f"fig06_regimes{tag}")
     _csv(shares.round(2), FIG / f"fig06_regime_shares_by_decade{tag}.csv")
     _csv(counts.T.assign(n_classifiable=pd.Series(n_cls), pct_insufficient=pd.Series(pct_insuf)).round(2),
